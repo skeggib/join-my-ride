@@ -1,5 +1,4 @@
 [workspace]
-name = "join-my-ride"
 members = [
     "backend",
     "frontend",
