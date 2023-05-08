@@ -5,7 +5,7 @@
 
 use gloo_net::http::Request;
 use seed::{prelude::*, *};
-use serde::{Deserialize, Serialize};
+use common::Event;
 
 // ------ ------
 //     Init
@@ -39,11 +39,6 @@ struct Model {
     error: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
-struct Event {
-    name: String,
-}
-
 // ------ ------
 //    Update
 // ------ ------
@@ -53,7 +48,7 @@ enum Msg {
     Error(String),
 }
 
-fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
     match msg {
         Msg::OnGetEventsResponse(events) => model.events = events,
         Msg::Error(error) => model.error = Some(error),
