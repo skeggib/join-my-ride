@@ -3,41 +3,60 @@
 // but some rules are too "annoying" or are not applicable for your case.)
 #![allow(clippy::wildcard_imports)]
 
+use gloo_net::http::Request;
 use seed::{prelude::*, *};
+use serde::{Deserialize, Serialize};
 
 // ------ ------
 //     Init
 // ------ ------
 
 // `init` describes what should happen when your app started.
-fn init(_: Url, _: &mut impl Orders<Msg>) -> Model {
-    Model { counter: 0 }
+fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
+    let request = Request::new("/api/events");
+    orders.perform_cmd(async {
+        let response = async { request.send().await?.text().await }.await;
+        match response {
+            Ok(json_str) => match serde_json::from_str(json_str.as_str()) {
+                Ok(events) => Msg::OnGetEventsResponse(events),
+                Err(error) => Msg::Error(format!("{}", error)),
+            },
+            Err(error) => Msg::Error(format!("{}", error)),
+        }
+    });
+    Model {
+        events: vec![],
+        error: None,
+    }
 }
 
 // ------ ------
 //     Model
 // ------ ------
 
-// `Model` describes our app state.
 struct Model {
-    counter: i32,
+    events: Vec<Event>,
+    error: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Event {
+    name: String,
 }
 
 // ------ ------
 //    Update
 // ------ ------
 
-// (Remove the line below once any of your `Msg` variants doesn't implement `Copy`.)
-#[derive(Copy, Clone)]
-// `Msg` describes the different events you can modify state with.
 enum Msg {
-    Increment,
+    OnGetEventsResponse(Vec<Event>),
+    Error(String),
 }
 
-// `update` describes how to handle each `Msg`.
-fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::Increment => model.counter += 1,
+        Msg::OnGetEventsResponse(events) => model.events = events,
+        Msg::Error(error) => model.error = Some(error),
     }
 }
 
@@ -45,13 +64,16 @@ fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
 //     View
 // ------ ------
 
-// `view` describes what to display.
 fn view(model: &Model) -> Node<Msg> {
-    div![
-        "This is a counter: ",
-        C!["counter"],
-        button![model.counter, ev(Ev::Click, |_| Msg::Increment),],
-    ]
+    let event_divs: Vec<Node<Msg>> = model
+        .events
+        .iter()
+        .map(|event| div![event.name.clone()])
+        .collect();
+    match &model.error {
+        Some(error) => div![error],
+        None => div![event_divs],
+    }
 }
 
 // ------ ------
