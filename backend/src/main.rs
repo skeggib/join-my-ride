@@ -12,13 +12,15 @@ fn index() -> &'static str {
 
 #[get("/<file..>")]
 async fn files(file: PathBuf) -> Option<NamedFile> {
-    // TODO: it is unsafe to allow requesting any file in frontend
-    // TODO: the file path needs sanitizing and checking for relative paths
+    // TODO(security): it is unsafe to allow requesting any file in frontend
+    // TODO(security): the file path needs sanitizing and checking for relative paths
     NamedFile::open(Path::new("../frontend/").join(file)).await.ok()
 }
 
 #[get("/api/events")]
 fn events() -> &'static str {
+    // TODO(hard-coded): get from database
+    // TODO(wip): serialize objects to JSON
     "[{\"name\": \"event_1\"}, {\"name\": \"event_2\"}, {\"name\": \"event_3\"}]"
 }
 
@@ -36,7 +38,7 @@ mod test {
     #[test]
     fn list_all_events() {
         // given 3 existing events
-        // TODO: populate events
+        // TODO(hard-coded): populate events when the events are retrieved from the database
 
         // when a user requests /api/events
         let client = Client::tracked(rocket()).expect("valid rocket instance");
@@ -47,9 +49,9 @@ mod test {
         assert_eq!(
             response.into_string(),
             Some(
-                "[{\"name\": \"event_1\"}, {\"name\": \"event_2\"}, {\"name\": \"event_3\"}]"
+                "[{\"name\": \"event_1\"}, {\"name\": \"event_2\"}, {\"name\": \"event_3\"}]" // TODO(wip): deserialize JSON
                     .into()
             )
-        ); // TODO: deserialize JSON
+        );
     }
 }
