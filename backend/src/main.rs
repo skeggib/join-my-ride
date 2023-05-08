@@ -1,8 +1,20 @@
-#[macro_use] extern crate rocket;
+use std::path::{PathBuf, Path};
+
+use rocket::fs::NamedFile;
+
+#[macro_use]
+extern crate rocket;
 
 #[get("/")]
 fn index() -> &'static str {
     "Hello, world!"
+}
+
+#[get("/<file..>")]
+async fn files(file: PathBuf) -> Option<NamedFile> {
+    // TODO: it is unsafe to allow requesting any file in frontend
+    // TODO: the file path needs sanitizing and checking for relative paths
+    NamedFile::open(Path::new("../frontend/").join(file)).await.ok()
 }
 
 #[get("/api/events")]
@@ -12,7 +24,7 @@ fn events() -> &'static str {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, events])
+    rocket::build().mount("/", routes![index, files, events])
 }
 
 #[cfg(test)]
