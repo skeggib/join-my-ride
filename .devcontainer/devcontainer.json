@@ -19,7 +19,8 @@
 				"hbenl.vscode-test-explorer",
 				"ms-vscode.test-adapter-converter",
 				"Swellaby.vscode-rust-test-adapter",
-				"bungcip.better-toml"
+				"bungcip.better-toml",
+				"Gruntfuggly.todo-tree"
 			]
 		}
 	}
