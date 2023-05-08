@@ -54,7 +54,9 @@ checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 name = "backend"
 version = "0.1.0"
 dependencies = [
+ "common",
  "rocket",
+ "serde_json",
 ]
 
 [[package]]
@@ -102,6 +104,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 [[package]]
 name = "common"
 version = "0.1.0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "console_error_panic_hook"
@@ -252,9 +257,9 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 name = "frontend"
 version = "0.1.0"
 dependencies = [
+ "common",
  "gloo-net",
  "seed",
- "serde",
  "serde_json",
  "wasm-bindgen-test",
 ]

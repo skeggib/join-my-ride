@@ -1,5 +1,6 @@
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 
+use common::Event;
 use rocket::fs::NamedFile;
 
 #[macro_use]
@@ -14,14 +15,26 @@ fn index() -> &'static str {
 async fn files(file: PathBuf) -> Option<NamedFile> {
     // TODO(security): it is unsafe to allow requesting any file in frontend
     // TODO(security): the file path needs sanitizing and checking for relative paths
-    NamedFile::open(Path::new("../frontend/").join(file)).await.ok()
+    NamedFile::open(Path::new("../frontend/").join(file))
+        .await
+        .ok()
 }
 
 #[get("/api/events")]
-fn events() -> &'static str {
+fn events() -> String {
     // TODO(hard-coded): get from database
-    // TODO(wip): serialize objects to JSON
-    "[{\"name\": \"event_1\"}, {\"name\": \"event_2\"}, {\"name\": \"event_3\"}]"
+    let events = vec![
+        Event {
+            name: "event_1".to_owned(),
+        },
+        Event {
+            name: "event_2".to_owned(),
+        },
+        Event {
+            name: "event_3".to_owned(),
+        },
+    ];
+    serde_json::to_string(&events).unwrap()
 }
 
 #[launch]
@@ -32,6 +45,7 @@ fn rocket() -> _ {
 #[cfg(test)]
 mod test {
     use super::rocket;
+    use common::Event;
     use rocket::http::Status;
     use rocket::local::blocking::Client;
 
@@ -46,12 +60,19 @@ mod test {
 
         // then the server responds with a list containing all 3 events
         assert_eq!(response.status(), Status::Ok);
-        assert_eq!(
-            response.into_string(),
-            Some(
-                "[{\"name\": \"event_1\"}, {\"name\": \"event_2\"}, {\"name\": \"event_3\"}]" // TODO(wip): deserialize JSON
-                    .into()
-            )
-        );
+        let actual: Vec<Event> =
+            serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
+        let expected = vec![
+            Event {
+                name: "event_1".to_owned(),
+            },
+            Event {
+                name: "event_2".to_owned(),
+            },
+            Event {
+                name: "event_3".to_owned(),
+            },
+        ];
+        assert_eq!(actual, expected);
     }
 }
