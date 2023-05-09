@@ -7,8 +7,8 @@ use rocket::fs::NamedFile;
 extern crate rocket;
 
 #[get("/")]
-fn index() -> &'static str {
-    "Hello, world!"
+async fn index() -> Option<NamedFile> {
+    files(Path::new("index.html").to_owned()).await
 }
 
 #[get("/<file..>")]
