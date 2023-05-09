@@ -6,6 +6,29 @@ use rocket::fs::NamedFile;
 #[macro_use]
 extern crate rocket;
 
+struct State {
+    events: Vec<Event>,
+}
+
+impl State {
+    fn new() -> State {
+        // TODO(hard-coded): get events from database
+        State {
+            events: vec![
+                Event {
+                    name: "event_1".to_owned(),
+                },
+                Event {
+                    name: "event_2".to_owned(),
+                },
+                Event {
+                    name: "event_3".to_owned(),
+                },
+            ],
+        }
+    }
+}
+
 #[get("/")]
 async fn index() -> Option<NamedFile> {
     files(Path::new("index.html").to_owned()).await
@@ -21,25 +44,15 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 }
 
 #[get("/api/events")]
-fn events() -> String {
-    // TODO(hard-coded): get from database
-    let events = vec![
-        Event {
-            name: "event_1".to_owned(),
-        },
-        Event {
-            name: "event_2".to_owned(),
-        },
-        Event {
-            name: "event_3".to_owned(),
-        },
-    ];
-    serde_json::to_string(&events).unwrap()
+fn events(state: &rocket::State<State>) -> String {
+    serde_json::to_string(&state.events).unwrap()
 }
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![index, files, events])
+    rocket::build()
+        .manage(State::new())
+        .mount("/", routes![index, files, events])
 }
 
 #[cfg(test)]
