@@ -1,8 +1,14 @@
+use async_trait::async_trait;
 use common::Event;
 use rocket::{
+    data::Outcome,
+    data::{FromData, ToByteUnit},
     fs::NamedFile,
+    http::Status,
+    Data, Request,
 };
 use std::{
+    ops::DerefMut,
     path::{Path, PathBuf},
     sync::Mutex,
 };
@@ -52,18 +58,45 @@ fn events(state: &rocket::State<State>) -> String {
     serde_json::to_string(&state.events).unwrap()
 }
 
+struct EventData {
+    event: Event,
+}
+
+#[async_trait]
+impl<'r> FromData<'r> for EventData {
+    async fn from_data(_: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self, Self::Error> {
+        match data.open(256.bytes()).into_string().await {
+            Ok(json_str) => match serde_json::from_str(json_str.as_str()) {
+                Ok(event) => Outcome::Success(EventData { event: event }),
+                Err(error) => Outcome::Failure((Status::BadRequest, error.to_string())),
+            },
+            Err(error) => Outcome::Failure((Status::BadRequest, error.to_string())),
+        }
+    }
+
+    type Error = String;
+}
+
+#[put("/api/event", format = "application/json", data = "<data>")]
+fn publish_event(data: EventData, state: &rocket::State<State>) {
+    match state.events.lock() {
+        Ok(mut guard) => guard.deref_mut().push(data.event),
+        Err(_) => {}
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket::build()
         .manage(State::new())
-        .mount("/", routes![index, files, events])
+        .mount("/", routes![index, files, events, publish_event])
 }
 
 #[cfg(test)]
 mod test {
     use super::rocket;
     use common::Event;
-    use rocket::http::Status;
+    use rocket::http::{ContentType, Status};
     use rocket::local::blocking::Client;
 
     #[test]
@@ -91,5 +124,53 @@ mod test {
             },
         ];
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn publish_an_event() {
+        let published_event_name = "published_event_name";
+
+        fn has_name(name: &str) -> impl Fn(&Event) -> bool {
+            let name_owned = name.to_owned();
+            return move |event: &Event| event.name == name_owned;
+        }
+
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+
+        // given an non-existing event
+        let response = client.get(uri!("/api/events")).dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        let initial_events: Vec<Event> =
+            serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
+        assert!(initial_events
+            .into_iter()
+            .filter(has_name(published_event_name))
+            .collect::<Vec<Event>>()
+            .is_empty());
+
+        // when a client publishes an event
+        let event = Event {
+            name: published_event_name.to_owned(),
+        };
+        let event_json = serde_json::to_string(&event).unwrap();
+        let response = client
+            .put(uri!("/api/event"))
+            .header(ContentType::JSON)
+            .body(event_json)
+            .dispatch();
+
+        // then the server responds with a success code
+        assert_eq!(response.status(), Status::Ok);
+
+        // then the event is added to the events list
+        let response = client.get(uri!("/api/events")).dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        let initial_events: Vec<Event> =
+            serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
+        assert!(!initial_events
+            .into_iter()
+            .filter(has_name(published_event_name))
+            .collect::<Vec<Event>>()
+            .is_empty());
     }
 }
