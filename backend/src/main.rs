@@ -1,20 +1,24 @@
-use std::path::{Path, PathBuf};
-
 use common::Event;
-use rocket::fs::NamedFile;
+use rocket::{
+    fs::NamedFile,
+};
+use std::{
+    path::{Path, PathBuf},
+    sync::Mutex,
+};
 
 #[macro_use]
 extern crate rocket;
 
 struct State {
-    events: Vec<Event>,
+    events: Mutex<Vec<Event>>,
 }
 
 impl State {
     fn new() -> State {
         // TODO(hard-coded): get events from database
         State {
-            events: vec![
+            events: Mutex::new(vec![
                 Event {
                     name: "event_1".to_owned(),
                 },
@@ -24,7 +28,7 @@ impl State {
                 Event {
                     name: "event_3".to_owned(),
                 },
-            ],
+            ]),
         }
     }
 }
