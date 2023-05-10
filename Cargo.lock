@@ -261,6 +261,7 @@ dependencies = [
  "common",
  "gloo-net",
  "seed",
+ "serde",
  "serde_json",
  "wasm-bindgen-test",
 ]
