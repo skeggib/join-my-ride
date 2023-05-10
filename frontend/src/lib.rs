@@ -86,8 +86,7 @@ fn request_events(orders: &mut impl Orders<Msg>) {
 fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
     request_events(orders);
     Model {
-        events: vec![],
-        error: None,
+        state: State::Loading,
     }
 }
 
@@ -95,9 +94,17 @@ fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
 //     Model
 // ------ ------
 
+type Events = Vec<Event>;
+type ErrorMessage = String;
+
+enum State {
+    Loading,
+    Loaded(Events),
+    Failed(ErrorMessage),
+}
+
 struct Model {
-    events: Vec<Event>,
-    error: Option<String>,
+    state: State,
 }
 
 // ------ ------
@@ -110,9 +117,9 @@ enum Msg {
 }
 
 fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
-    match msg {
-        Msg::OnGetEventsResponse(events) => model.events = events,
-        Msg::Error(error) => model.error = Some(error),
+    model.state = match msg {
+        Msg::OnGetEventsResponse(events) => State::Loaded(events),
+        Msg::Error(error) => State::Failed(error),
     }
 }
 
@@ -121,14 +128,16 @@ fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
 // ------ ------
 
 fn view(model: &Model) -> Node<Msg> {
-    let event_divs: Vec<Node<Msg>> = model
-        .events
-        .iter()
-        .map(|event| div![event.name.clone()])
-        .collect();
-    match &model.error {
-        Some(error) => div![error],
-        None => div![event_divs],
+    match &model.state {
+        State::Loading => div!["loading..."],
+        State::Loaded(events) => {
+            let event_divs: Vec<Node<Msg>> = events
+                .iter()
+                .map(|event| div![event.name.clone()])
+                .collect();
+            div![event_divs]
+        }
+        State::Failed(error) => div![error],
     }
 }
 
