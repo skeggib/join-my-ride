@@ -3,6 +3,8 @@
 // but some rules are too "annoying" or are not applicable for your case.)
 #![allow(clippy::wildcard_imports)]
 
+use std::future::Future;
+
 use common::Event;
 use gloo_net::http::Request;
 use seed::{prelude::*, *};
@@ -91,46 +93,31 @@ async fn put_event(name: String) -> Result<(), String> {
 
 fn request_events(orders: &mut impl Orders<Msg>) {
     log!("get all events");
-    orders.perform_cmd(async {
+    perform_cmd(orders, async {
         match get_events().await {
-            Ok(events) => Msg::OnGetEventsResponse(events),
+            Ok(events) => Msg::EventList(MsgEventList::OnGetEventsResponse(events)),
             Err(error) => Msg::Error(error),
         }
     });
 }
 
-fn clear_publish_event_form(model: &Model) -> State {
-    match &model.state {
-        State::Loaded(loaded_state) => {
-            let mut new_state = loaded_state.clone();
-            new_state.publish_event_name = "".to_owned();
-            State::Loaded(new_state)
-        }
-        _ => model.state.clone(),
-    }
+// wrapper around orders.perform_cmd to make the cmd strongly typed
+fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
+    orders.perform_cmd(cmd);
 }
 
-fn publish_event(state: &LoadedState, orders: &mut impl Orders<Msg>) {
+fn publish_event(contents: &EventPublicationFormContents, orders: &mut impl Orders<Msg>) {
     log!("publish event");
-    let name = state.publish_event_name.clone();
-    orders.perform_cmd(async move {
+    let name = contents.event_name.clone();
+    perform_cmd(orders, async move {
         match put_event(name).await {
-            Ok(_) => {}
-            Err(error) => error!(error),
+            Ok(_) => Msg::EventPublicationForm(MsgEventPublicationForm::OnEventPublished),
+            Err(error) => {
+                error!(error);
+                todo!()
+            }
         }
-        ()
     });
-}
-
-fn publish_event_click(model: &Model, orders: &mut impl Orders<Msg>) -> State {
-    match &model.state {
-        State::Loaded(loaded_state) => {
-            publish_event(loaded_state, orders);
-            request_events(orders);
-            clear_publish_event_form(model)
-        }
-        _ => model.state.clone(),
-    }
 }
 
 // `init` describes what should happen when your app started.
@@ -157,8 +144,21 @@ enum State {
 
 #[derive(Clone)]
 struct LoadedState {
-    events: Events,
-    publish_event_name: String,
+    event_list: Events,
+    event_publication_form: EventPublicationForm,
+}
+
+#[derive(Clone)]
+enum EventPublicationForm {
+    Empty,
+    Typing(EventPublicationFormContents),
+    Publishing(EventPublicationFormContents),
+    Invalid((Option<EventPublicationFormContents>, String)),
+}
+
+#[derive(Clone)]
+struct EventPublicationFormContents {
+    event_name: String,
 }
 
 struct Model {
@@ -169,37 +169,196 @@ struct Model {
 //    Update
 // ------ ------
 
+#[derive(Clone)]
 enum Msg {
-    OnGetEventsResponse(Vec<Event>),
-    PublishEventNameChange(String),
-    PublishEventClick,
+    EventList(MsgEventList),
+    EventPublicationForm(MsgEventPublicationForm),
     Error(String),
 }
 
+#[derive(Clone)]
+enum MsgEventList {
+    OnGetEventsResponse(Vec<Event>),
+}
+
+#[derive(Clone)]
+enum MsgEventPublicationForm {
+    PublishEventNameChange(String),
+    PublishEventClick,
+    OnEventPublished,
+}
+
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
-    model.state = match msg {
-        Msg::OnGetEventsResponse(events) => match &model.state {
-            State::Loading => State::Loaded(LoadedState {
-                events: events,
-                publish_event_name: "".to_owned(),
+    model.state = update_state(msg, &model.state, orders);
+}
+
+fn update_state(msg: Msg, state: &State, orders: &mut impl Orders<Msg>) -> State {
+    match state {
+        State::Loading => update_state_loading(msg),
+        State::Loaded(loaded) => match update_state_loaded(msg, loaded, orders) {
+            Ok(new_loaded) => State::Loaded(new_loaded),
+            Err(error) => State::Failed(error),
+        },
+        State::Failed(failed) => State::Failed(failed.into()),
+    }
+}
+
+fn update_state_loading(msg: Msg) -> State {
+    match msg {
+        Msg::EventList(event_list_msg) => match event_list_msg {
+            MsgEventList::OnGetEventsResponse(events) => State::Loaded(LoadedState {
+                event_list: events,
+                event_publication_form: EventPublicationForm::Empty,
             }),
-            State::Loaded(loaded_state) => {
-                let mut new_state = loaded_state.clone();
-                new_state.events = events;
-                State::Loaded(new_state)
-            }
-            _ => model.state.clone(),
         },
+        Msg::EventPublicationForm(_) => {
+            error!("received a publication form message while loading");
+            State::Loading
+        }
         Msg::Error(error) => State::Failed(error),
-        Msg::PublishEventNameChange(new_name) => match &model.state {
-            State::Loaded(loaded_state) => {
-                let mut new_state = loaded_state.clone();
-                new_state.publish_event_name = new_name;
-                State::Loaded(new_state)
-            }
-            _ => model.state.clone(),
+    }
+}
+
+fn update_state_loaded(
+    msg: Msg,
+    loaded: &LoadedState,
+    orders: &mut impl Orders<Msg>,
+) -> Result<LoadedState, String> {
+    match msg {
+        Msg::EventPublicationForm(MsgEventPublicationForm::OnEventPublished) => {
+            request_events(orders);
+        }
+        _ => {}
+    };
+    Ok(LoadedState {
+        event_list: match msg.clone() {
+            Msg::EventList(msg_event_list) => update_event_list(msg_event_list)?,
+            _ => loaded.event_list.clone(),
         },
-        Msg::PublishEventClick => publish_event_click(model, orders),
+        event_publication_form: match msg {
+            Msg::EventPublicationForm(msg_event_publication_form) => update_event_publication_form(
+                msg_event_publication_form,
+                &loaded.event_publication_form,
+                orders,
+            )?,
+            _ => loaded.event_publication_form.clone(),
+        },
+    })
+}
+
+fn update_event_list(msg: MsgEventList) -> Result<Events, String> {
+    Ok(match msg {
+        MsgEventList::OnGetEventsResponse(events) => events,
+    })
+}
+
+fn update_event_publication_form(
+    msg: MsgEventPublicationForm,
+    form: &EventPublicationForm,
+    orders: &mut impl Orders<Msg>,
+) -> Result<EventPublicationForm, String> {
+    match form {
+        EventPublicationForm::Empty => update_event_publication_form_empty(msg),
+        EventPublicationForm::Typing(contents) => {
+            update_event_publication_form_typing(msg, contents, orders)
+        }
+        EventPublicationForm::Publishing(contents) => {
+            update_event_publication_form_publishing(msg, contents, orders)
+        }
+        EventPublicationForm::Invalid((contents, _)) => {
+            update_event_publication_form_invalid(msg, contents)
+        }
+    }
+}
+
+fn update_event_publication_form_empty(
+    msg: MsgEventPublicationForm,
+) -> Result<EventPublicationForm, String> {
+    match msg {
+        MsgEventPublicationForm::PublishEventNameChange(name) => {
+            Ok(EventPublicationForm::Typing(EventPublicationFormContents {
+                event_name: name,
+            }))
+        }
+        MsgEventPublicationForm::PublishEventClick => Ok(EventPublicationForm::Invalid((
+            None,
+            "The name is required".into(),
+        ))),
+        MsgEventPublicationForm::OnEventPublished => {
+            error!("should not happen");
+            Ok(EventPublicationForm::Empty)
+        }
+    }
+}
+
+fn update_event_publication_form_typing(
+    msg: MsgEventPublicationForm,
+    contents: &EventPublicationFormContents,
+    orders: &mut impl Orders<Msg>,
+) -> Result<EventPublicationForm, String> {
+    match msg {
+        MsgEventPublicationForm::PublishEventNameChange(name) => {
+            let mut new_contents = contents.clone();
+            new_contents.event_name = name;
+            Ok(EventPublicationForm::Typing(new_contents))
+        }
+        MsgEventPublicationForm::PublishEventClick => {
+            if contents.event_name.is_empty() {
+                Ok(EventPublicationForm::Invalid((
+                    Some(contents.clone()),
+                    "The name is required".into(),
+                )))
+            } else {
+                publish_event(contents, orders);
+                Ok(EventPublicationForm::Publishing(contents.clone()))
+            }
+        }
+        MsgEventPublicationForm::OnEventPublished => {
+            error!("should not happen");
+            Ok(EventPublicationForm::Empty)
+        }
+    }
+}
+
+fn update_event_publication_form_publishing(
+    msg: MsgEventPublicationForm,
+    contents: &EventPublicationFormContents,
+    orders: &mut impl Orders<Msg>,
+) -> Result<EventPublicationForm, String> {
+    match msg {
+        MsgEventPublicationForm::PublishEventNameChange(name) => {
+            let mut new_contents = contents.clone();
+            new_contents.event_name = name;
+            Ok(EventPublicationForm::Publishing(new_contents))
+        }
+        MsgEventPublicationForm::PublishEventClick => {
+            publish_event(contents, orders);
+            Ok(EventPublicationForm::Publishing(contents.clone()))
+        }
+        MsgEventPublicationForm::OnEventPublished => Ok(EventPublicationForm::Empty),
+    }
+}
+
+fn update_event_publication_form_invalid(
+    msg: MsgEventPublicationForm,
+    maybe_contents: &Option<EventPublicationFormContents>,
+) -> Result<EventPublicationForm, String> {
+    match maybe_contents {
+        Some(contents) => match msg {
+            MsgEventPublicationForm::PublishEventNameChange(name) => {
+                let mut new_contents = contents.clone();
+                new_contents.event_name = name;
+                Ok(EventPublicationForm::Typing(new_contents))
+            }
+            MsgEventPublicationForm::PublishEventClick => {
+                Ok(EventPublicationForm::Typing(contents.clone()))
+            }
+            MsgEventPublicationForm::OnEventPublished => {
+                error!("should not happen");
+                Ok(EventPublicationForm::Empty)
+            }
+        },
+        None => Ok(EventPublicationForm::Empty),
     }
 }
 
@@ -207,22 +366,57 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 //     View
 // ------ ------
 
+fn view_event_list(state: &LoadedState) -> Node<Msg> {
+    let event_divs: Vec<Node<Msg>> = state
+        .event_list
+        .iter()
+        .map(|event| div![event.name.clone()])
+        .collect();
+    div![event_divs]
+}
+
+fn view_event_name_input(state: &LoadedState) -> Node<Msg> {
+    let value = match &state.event_publication_form {
+        EventPublicationForm::Empty => "".into(),
+        EventPublicationForm::Typing(contents) => contents.event_name.clone(),
+        EventPublicationForm::Publishing(contents) => contents.event_name.clone(),
+        EventPublicationForm::Invalid((maybe_contents, _)) => match maybe_contents {
+            Some(contents) => contents.event_name.clone(),
+            None => "".into(),
+        },
+    };
+    let input = input![
+        attrs![At::Value => value],
+        input_ev(Ev::Input, |value| {
+            Msg::EventPublicationForm(MsgEventPublicationForm::PublishEventNameChange(value))
+        })
+    ];
+    match &state.event_publication_form {
+        EventPublicationForm::Invalid((_, error)) => div![input, error],
+        _ => div![input],
+    }
+}
+
 fn view(model: &Model) -> Node<Msg> {
     match &model.state {
         State::Loading => div!["loading..."],
         State::Loaded(loaded_state) => {
-            let event_divs: Vec<Node<Msg>> = loaded_state
-                .events
-                .iter()
-                .map(|event| div![event.name.clone()])
-                .collect();
+            let is_form_ready_for_publishing = match loaded_state.event_publication_form {
+                EventPublicationForm::Empty => false,
+                EventPublicationForm::Typing(_) => true,
+                EventPublicationForm::Publishing(_) => false,
+                EventPublicationForm::Invalid(_) => false,
+            };
             div![
-                div![event_divs],
-                input![
-                    attrs![At::Value=>loaded_state.publish_event_name.clone()],
-                    input_ev(Ev::Input, |value| { Msg::PublishEventNameChange(value) })
-                ],
-                button!["publish event", ev(Ev::Click, |_| Msg::PublishEventClick)]
+                view_event_list(loaded_state),
+                view_event_name_input(loaded_state),
+                button![
+                    "publish event",
+                    attrs![At::Disabled => (!is_form_ready_for_publishing).as_at_value()],
+                    ev(Ev::Click, |_| Msg::EventPublicationForm(
+                        MsgEventPublicationForm::PublishEventClick
+                    ))
+                ]
             ]
         }
         State::Failed(error) => div![error],
