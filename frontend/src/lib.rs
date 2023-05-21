@@ -5,6 +5,7 @@
 
 mod event_list;
 mod event_publication;
+mod rest;
 
 use seed::{prelude::*, *};
 
