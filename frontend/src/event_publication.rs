@@ -1,5 +1,5 @@
+use crate::rest::put_json;
 use common::Event;
-use gloo_net::http::Request;
 use seed::{prelude::*, *};
 use std::future::Future;
 
@@ -26,19 +26,6 @@ pub enum Msg {
 // TODO: move to common code
 fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
     orders.perform_cmd(cmd);
-}
-
-// TODO: move to common code
-async fn put_json<T>(url: &str, value: &T) -> Result<(), String>
-where
-    T: serde::Serialize,
-{
-    let request = Request::new(url)
-        .method(gloo_net::http::Method::PUT)
-        .json(value)
-        .map_err(|error| error.to_string())?;
-    request.send().await.map_err(|error| error.to_string())?;
-    Ok(())
 }
 
 async fn put_event(name: String) -> Result<(), String> {
