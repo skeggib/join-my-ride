@@ -6,6 +6,7 @@ Install dependencies:
 
 ```
 cargo install cargo-make
+cargo install cargo-watch
 ```
 
 Build the frontend:
