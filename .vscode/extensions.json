@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        "streetsidesoftware.code-spell-checker",
+        "mhutchie.git-graph",
+        "eamodio.gitlens",
+        "Cardinal90.multi-cursor-case-preserve",
+        "rust-lang.rust-analyzer",
+        "hbenl.vscode-test-explorer",
+        "ms-vscode.test-adapter-converter",
+        "Swellaby.vscode-rust-test-adapter",
+        "bungcip.better-toml",
+        "Gruntfuggly.todo-tree"
+    ]
+}
