@@ -25,15 +25,9 @@ impl State {
         // TODO(hard-coded): get events from database
         State {
             events: Mutex::new(vec![
-                Event {
-                    name: "event_1".to_owned(),
-                },
-                Event {
-                    name: "event_2".to_owned(),
-                },
-                Event {
-                    name: "event_3".to_owned(),
-                },
+                Event::new("event_1".to_owned()),
+                Event::new("event_2".to_owned()),
+                Event::new("event_3".to_owned()),
             ]),
         }
     }
@@ -48,7 +42,7 @@ async fn index() -> Option<NamedFile> {
 async fn files(file: PathBuf) -> Option<NamedFile> {
     // TODO(security): it is unsafe to allow requesting any file in frontend
     // TODO(security): the file path needs sanitizing and checking for relative paths
-    NamedFile::open(Path::new("../frontend/").join(file))
+    NamedFile::open(Path::new("frontend/").join(file))
         .await
         .ok()
 }
@@ -113,15 +107,9 @@ mod test {
         let actual: Vec<Event> =
             serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
         let expected = vec![
-            Event {
-                name: "event_1".to_owned(),
-            },
-            Event {
-                name: "event_2".to_owned(),
-            },
-            Event {
-                name: "event_3".to_owned(),
-            },
+            Event::new("event_1".to_owned()),
+            Event::new("event_2".to_owned()),
+            Event::new("event_3".to_owned()),
         ];
         assert_eq!(actual, expected);
     }
@@ -149,9 +137,7 @@ mod test {
             .is_empty());
 
         // when a client publishes an event
-        let event = Event {
-            name: published_event_name.to_owned(),
-        };
+        let event = Event::new(published_event_name.to_owned());
         let event_json = serde_json::to_string(&event).unwrap();
         let response = client
             .put(uri!("/api/event"))

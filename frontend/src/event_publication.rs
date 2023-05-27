@@ -29,7 +29,7 @@ fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + '
 }
 
 async fn put_event(name: String) -> Result<(), String> {
-    let event = Event { name: name };
+    let event = Event::new(name);
     put_json("/api/event", &event).await
 }
 
