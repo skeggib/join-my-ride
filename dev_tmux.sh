@@ -1,6 +1,8 @@
 #!/bin/sh
 
 tmux new-session \; \
-    send-keys 'cd frontend/; cargo make watch' C-m \; \
+    send-keys 'cargo watch -x test' C-m \; \
     split-window -h \; \
-    send-keys 'cd backend/; cargo watch -x run' C-m
+    send-keys 'cd backend/; cargo watch -C .. -x "run backend"' C-m \; \
+    split-window -v \; \
+    send-keys 'cd frontend/; cargo make watch' C-m
