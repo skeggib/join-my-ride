@@ -3,19 +3,21 @@ use serde;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub type Id = Uuid;
+
 #[derive(Serialize, Deserialize, Debug, Clone, Derivative)]
 #[derivative(PartialEq)]
 pub struct Event {
     #[serde(with = "uuid_codec")]
     #[derivative(PartialEq = "ignore")]
-    pub id: Uuid,
+    pub id: Id,
     pub name: String,
 }
 
 impl Event {
     pub fn new(name: String) -> Event {
         Event {
-            id: Uuid::new_v4(),
+            id: Id::new_v4(),
             name: name,
         }
     }
