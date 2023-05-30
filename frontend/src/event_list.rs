@@ -38,6 +38,14 @@ pub fn update(msg: Msg) -> Result<Model, String> {
 }
 
 pub fn view(model: &Model) -> Node<Msg> {
-    let event_divs: Vec<Node<Msg>> = model.iter().map(|event| div![event.name.clone()]).collect();
+    let event_divs: Vec<Node<Msg>> = model
+        .iter()
+        .map(|event| {
+            div![a![
+                attrs! {At::Href => format!("/event/{}", event.id.to_string())},
+                event.name.clone()
+            ]]
+        })
+        .collect();
     div![event_divs]
 }

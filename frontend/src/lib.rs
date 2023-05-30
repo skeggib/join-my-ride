@@ -8,17 +8,29 @@ mod event_publication;
 mod page;
 mod rest;
 
-use seed::prelude::*;
+use seed::{prelude::*, *};
+use std::str::FromStr;
 
-fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
+fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
+    orders.subscribe(Msg::UrlChanged);
     Model {
         page: Page::Main(page::main::init(url, &mut orders.proxy(Msg::Main))),
+    }
+}
+
+fn parse_url(mut url: Url) -> Option<Route> {
+    match url.next_path_part() {
+        Some("event") => Some(Route::Event(
+            common::Id::from_str(url.next_path_part()?).ok()?,
+        )),
+        _ => None,
     }
 }
 
 #[derive(Clone)]
 enum Page {
     Main(page::main::Model),
+    Event(page::event::Model),
 }
 
 struct Model {
@@ -27,26 +39,48 @@ struct Model {
 
 #[derive(Clone)]
 enum Msg {
+    UrlChanged(subs::UrlChanged),
     Main(page::main::Msg),
+    Event(page::event::Msg),
+}
+
+#[derive(Clone)]
+enum Route {
+    Main,
+    Event(common::Id),
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::Main(main_msg) => match &model.page {
-            Page::Main(main_model) => {
-                model.page = Page::Main(page::main::update(
-                    main_msg,
-                    main_model,
+        Msg::UrlChanged(url) => {
+            model.page = match parse_url(url.0.clone()) {
+                Some(Route::Main) => Page::Main(page::main::init(
+                    url.0.clone(),
                     &mut orders.proxy(Msg::Main),
-                ));
+                )),
+                Some(Route::Event(id)) => {
+                    Page::Event(page::event::init(url.0, &mut orders.proxy(Msg::Event)))
+                }
+                None => Page::Main(page::main::init(url.0, &mut orders.proxy(Msg::Main))),
+            };
+        }
+        Msg::Main(main_msg) => {
+            if let Page::Main(model) = &mut model.page {
+                *model = page::main::update(main_msg, model, &mut orders.proxy(Msg::Main));
             }
-        },
+        }
+        Msg::Event(event_msg) => {
+            if let Page::Event(model) = &mut model.page {
+                *model = page::event::update(event_msg, model, &mut orders.proxy(Msg::Event));
+            }
+        }
     }
 }
 
 fn view(model: &Model) -> Node<Msg> {
     match &model.page {
-        Page::Main(main_model) => page::main::view(main_model).map_msg(Msg::Main),
+        Page::Main(model) => page::main::view(model).map_msg(Msg::Main),
+        Page::Event(model) => page::event::view(model).map_msg(Msg::Event),
     }
 }
 
