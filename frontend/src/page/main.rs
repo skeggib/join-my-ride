@@ -1,7 +1,7 @@
 use crate::{event_list, event_publication};
 use seed::{prelude::*, *};
 
-pub fn init(_: Url, orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(_: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
     event_list::request_events(&mut orders.proxy(Msg::EventList));
     Model::Loading
 }
