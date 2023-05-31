@@ -10,6 +10,7 @@ use rocket::{
 use std::{
     ops::DerefMut,
     path::{Path, PathBuf},
+    str::FromStr,
     sync::Mutex,
 };
 
@@ -33,16 +34,21 @@ impl State {
     }
 }
 
-#[get("/")]
-async fn index() -> Option<NamedFile> {
-    files(Path::new("index.html").to_owned()).await
+#[get("/<_url..>")]
+async fn index(_url: PathBuf) -> Option<NamedFile> {
+    NamedFile::open(Path::new("frontend/index.html")).await.ok()
 }
 
-#[get("/<file..>")]
-async fn files(file: PathBuf) -> Option<NamedFile> {
-    // TODO(security): it is unsafe to allow requesting any file in frontend
-    // TODO(security): the file path needs sanitizing and checking for relative paths
-    NamedFile::open(Path::new("frontend/").join(file))
+#[get("/pkg/package.js")]
+async fn package_js() -> Option<NamedFile> {
+    NamedFile::open(Path::new("frontend/pkg/package.js"))
+        .await
+        .ok()
+}
+
+#[get("/pkg/package_bg.wasm")]
+async fn package_wasm() -> Option<NamedFile> {
+    NamedFile::open(Path::new("frontend/pkg/package_bg.wasm"))
         .await
         .ok()
 }
@@ -50,6 +56,18 @@ async fn files(file: PathBuf) -> Option<NamedFile> {
 #[get("/api/events")]
 fn events(state: &rocket::State<State>) -> String {
     serde_json::to_string(&state.events).unwrap()
+}
+
+#[get("/api/event/<id_str>")]
+fn event(id_str: String, state: &rocket::State<State>) -> Option<String> {
+    let id = common::Id::from_str(&id_str).ok()?;
+    let all_events = state.events.lock().ok()?;
+    let matching_events: Vec<&Event> = all_events.iter().filter(|event| event.id == id).collect();
+    if matching_events.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&matching_events[0]).ok()?)
+    }
 }
 
 struct EventData {
@@ -81,9 +99,17 @@ fn publish_event(data: EventData, state: &rocket::State<State>) {
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build()
-        .manage(State::new())
-        .mount("/", routes![index, files, events, publish_event])
+    rocket::build().manage(State::new()).mount(
+        "/",
+        routes![
+            index,
+            package_js,
+            package_wasm,
+            events,
+            event,
+            publish_event
+        ],
+    )
 }
 
 #[cfg(test)]
@@ -112,6 +138,49 @@ mod test {
             Event::new("event_3".to_owned()),
         ];
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn get_an_event_by_id() {
+        // given 3 existing events
+        // TODO(hard-coded): populate events when the events are retrieved from the database
+
+        // when a user requests /api/event/<id>
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+        // get an existing id
+        let events: Vec<Event> = serde_json::from_str(
+            client
+                .get(uri!("/api/events"))
+                .dispatch()
+                .into_string()
+                .unwrap()
+                .as_str(),
+        )
+        .unwrap();
+        let event = events[0].clone();
+        // actual request under test
+        let uri = format!("/api/event/{}", event.id);
+        let response = client.get(uri).dispatch();
+
+        // then the server responds with a list containing all 3 events
+        assert_eq!(response.status(), Status::Ok);
+        let actual: Event = serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
+        let expected = event;
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn get_a_non_existing_event_by_id() {
+        // given 3 existing events
+        // TODO(hard-coded): populate events when the events are retrieved from the database
+
+        // when a user requests a non-existing event using /api/event/<id>
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+        let uri = format!("/api/event/{}", common::Id::new_v4());
+        let response = client.get(uri).dispatch();
+
+        // then the server responds with 404 not found
+        assert_eq!(response.status(), Status::NotFound);
     }
 
     #[test]

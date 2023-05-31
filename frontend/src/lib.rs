@@ -8,22 +8,26 @@ mod event_publication;
 mod page;
 mod rest;
 
-use seed::{prelude::*, *};
-use std::str::FromStr;
+use seed::prelude::*;
 
 fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     Model {
-        page: Page::Main(page::main::init(url, &mut orders.proxy(Msg::Main))),
+        page: page_from_url(&mut url, orders),
     }
 }
 
-fn parse_url(mut url: Url) -> Option<Route> {
+fn parse_url(url: &mut Url) -> Route {
     match url.next_path_part() {
-        Some("event") => Some(Route::Event(
-            common::Id::from_str(url.next_path_part()?).ok()?,
-        )),
-        _ => None,
+        Some("event") => Route::Event,
+        _ => Route::Main,
+    }
+}
+
+fn page_from_url(url: &mut Url, orders: &mut impl Orders<Msg>) -> Page {
+    match parse_url(url) {
+        Route::Main => Page::Main(page::main::init(url, &mut orders.proxy(Msg::Main))),
+        Route::Event => Page::Event(page::event::init(url, &mut orders.proxy(Msg::Event))),
     }
 }
 
@@ -47,22 +51,14 @@ enum Msg {
 #[derive(Clone)]
 enum Route {
     Main,
-    Event(common::Id),
+    Event,
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::UrlChanged(url) => {
-            model.page = match parse_url(url.0.clone()) {
-                Some(Route::Main) => Page::Main(page::main::init(
-                    url.0.clone(),
-                    &mut orders.proxy(Msg::Main),
-                )),
-                Some(Route::Event(id)) => {
-                    Page::Event(page::event::init(url.0, &mut orders.proxy(Msg::Event)))
-                }
-                None => Page::Main(page::main::init(url.0, &mut orders.proxy(Msg::Main))),
-            };
+        Msg::UrlChanged(url_changed) => {
+            let mut url = url_changed.0;
+            model.page = page_from_url(&mut url, orders);
         }
         Msg::Main(main_msg) => {
             if let Page::Main(model) = &mut model.page {
