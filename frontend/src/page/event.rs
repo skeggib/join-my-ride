@@ -1,26 +1,8 @@
+use crate::event;
 use crate::rest::get_json;
 use common::{Event, Id};
 use seed::{prelude::*, *};
 use std::{future::Future, str::FromStr};
-
-async fn get_event(id: Id) -> Result<Event, String> {
-    get_json::<Event>(&format!("/api/event/{}", id)).await
-}
-
-pub fn request_event(id: Id, orders: &mut impl Orders<Msg>) {
-    log!("get event {}", id);
-    perform_cmd(orders, async move {
-        match get_event(id).await {
-            Ok(event) => Msg::OnGetEventResponse(event),
-            Err(error) => Msg::Error(error),
-        }
-    });
-}
-
-// TODO: move to common code
-fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
-    orders.perform_cmd(cmd);
-}
 
 fn id_from_url(url: &mut Url) -> Result<Id, String> {
     Id::from_str(
@@ -33,7 +15,7 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
 pub fn init(url: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
-            request_event(id, orders);
+            event::request_event(id, orders);
             Model::Loading
         }
         Err(err) => Model::Failed(err),
@@ -51,26 +33,51 @@ pub enum Model {
 
 #[derive(Clone)]
 pub struct Loaded {
-    pub event: Event,
+    pub event: event::Model,
 }
 
 #[derive(Clone)]
 pub enum Msg {
-    OnGetEventResponse(Event),
-    Error(String),
+    Event(event::Msg),
 }
 
-pub fn update(msg: Msg, _: &Model, _: &mut impl Orders<Msg>) -> Model {
-    match msg {
-        Msg::OnGetEventResponse(event) => Model::Loaded(Loaded { event: event }),
-        Msg::Error(err) => Model::Failed(err),
+pub fn update(msg: Msg, model: &Model, orders: &mut impl Orders<Msg>) -> Model {
+    match model {
+        Model::Loading => update_loading(msg),
+        Model::Loaded(loaded) => match update_loaded(msg, loaded, orders) {
+            Ok(new_loaded) => Model::Loaded(new_loaded),
+            Err(error) => Model::Failed(error),
+        },
+        Model::Failed(failed) => Model::Failed(failed.into()),
     }
+}
+
+fn update_loading(msg: Msg) -> Model {
+    match msg {
+        Msg::Event(event_msg) => match event_msg {
+            event::Msg::OnGetEventsResponse(event) => Model::Loaded(Loaded { event: event }),
+            event::Msg::Error(error) => Model::Failed(error),
+        },
+    }
+}
+
+fn update_loaded(
+    msg: Msg,
+    loaded: &Loaded,
+    orders: &mut impl Orders<Msg>,
+) -> Result<Loaded, String> {
+    Ok(Loaded {
+        event: match msg.clone() {
+            Msg::Event(msg_event) => event::update(msg_event)?,
+            _ => loaded.event.clone(),
+        },
+    })
 }
 
 pub fn view(model: &Model) -> Node<Msg> {
     match model {
         Model::Loading => div!["loading..."],
-        Model::Loaded(loaded) => div![&loaded.event.name],
+        Model::Loaded(loaded) => div![&event::view(model)],
         Model::Failed(err) => div![err],
     }
 }
