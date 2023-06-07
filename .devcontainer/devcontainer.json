@@ -20,7 +20,8 @@
 				"ms-vscode.test-adapter-converter",
 				"Swellaby.vscode-rust-test-adapter",
 				"bungcip.better-toml",
-				"Gruntfuggly.todo-tree"
+				"Gruntfuggly.todo-tree",
+				"vadimcn.vscode-lldb"
 			]
 		}
 	}
