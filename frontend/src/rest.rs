@@ -58,6 +58,18 @@ where
     parse_json(&text(response).await?)
 }
 
+pub async fn put(url: &str) -> Result<(), String> {
+    let request = Request::new(url)
+        .method(gloo_net::http::Method::PUT)
+        .header("Authorization", "Bearer valid_token");
+    request
+        .send()
+        .await
+        .map_err(|error| error.to_string())
+        .and_then(check_is_ok)?;
+    Ok(())
+}
+
 pub async fn put_json<T>(url: &str, value: &T) -> Result<(), String>
 where
     T: serde::Serialize,

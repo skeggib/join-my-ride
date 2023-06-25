@@ -1,4 +1,4 @@
-use crate::event;
+use crate::component::event;
 use crate::rest::get_json;
 use common::{Event, Id};
 use seed::{prelude::*, *};
@@ -15,7 +15,7 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
 pub fn init(url: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
-            event::request_event(id, orders);
+            event::request_event(id, &mut orders.proxy(Msg::Event));
             Model::Loading
         }
         Err(err) => Model::Failed(err),
@@ -55,8 +55,9 @@ pub fn update(msg: Msg, model: &Model, orders: &mut impl Orders<Msg>) -> Model {
 fn update_loading(msg: Msg) -> Model {
     match msg {
         Msg::Event(event_msg) => match event_msg {
-            event::Msg::OnGetEventsResponse(event) => Model::Loaded(Loaded { event: event }),
+            event::Msg::OnGetEventResponse(event) => Model::Loaded(Loaded { event: event }),
             event::Msg::Error(error) => Model::Failed(error),
+            event::Msg::JoinEventClick => todo!(),
         },
     }
 }
@@ -68,7 +69,11 @@ fn update_loaded(
 ) -> Result<Loaded, String> {
     Ok(Loaded {
         event: match msg.clone() {
-            Msg::Event(msg_event) => event::update(msg_event)?,
+            Msg::Event(msg_event) => event::update(
+                msg_event,
+                loaded.event.clone(),
+                &mut orders.proxy(Msg::Event),
+            )?,
             _ => loaded.event.clone(),
         },
     })
@@ -77,7 +82,7 @@ fn update_loaded(
 pub fn view(model: &Model) -> Node<Msg> {
     match model {
         Model::Loading => div!["loading..."],
-        Model::Loaded(loaded) => div![&event::view(model)],
+        Model::Loaded(loaded) => div![&event::view(&loaded.event).map_msg(Msg::Event)],
         Model::Failed(err) => div![err],
     }
 }
