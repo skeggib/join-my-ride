@@ -72,6 +72,46 @@ fn event(id_str: String, state: &rocket::State<State>) -> Option<String> {
     }
 }
 
+struct User {
+    name: String,
+}
+
+#[crate::async_trait]
+impl<'r> FromRequest<'r> for User {
+    type Error = String;
+
+    async fn from_request(request: &'r Request<'_>) -> rocket::request::Outcome<Self, Self::Error> {
+        let user_tokens: HashMap<String, String> =
+            HashMap::from([("valid_token".to_owned(), "valid_user".to_owned())]);
+        match request.headers().get_one("Authorization") {
+            Some(authorization) => {
+                let parts: Vec<&str> = authorization.trim().split(' ').collect();
+                if parts.len() != 2 || parts[0] != "Bearer" {
+                    rocket::outcome::Outcome::Failure((
+                        Status::BadRequest,
+                        "invalid authorization header".to_owned(),
+                    ))
+                } else {
+                    let token = parts[1];
+                    match user_tokens.get(token) {
+                        Some(username) => rocket::outcome::Outcome::Success(User {
+                            name: username.to_string(),
+                        }),
+                        None => rocket::outcome::Outcome::Failure((
+                            Status::BadRequest,
+                            "invalid token".to_owned(),
+                        )),
+                    }
+                }
+            }
+            None => rocket::outcome::Outcome::Failure((
+                Status::BadRequest,
+                "missing authorization header".to_owned(),
+            )),
+        }
+    }
+}
+
 struct EventData {
     event: Event,
 }
