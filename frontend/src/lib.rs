@@ -4,6 +4,7 @@
 #![allow(clippy::wildcard_imports)]
 
 mod component;
+mod orders;
 mod page;
 mod rest;
 

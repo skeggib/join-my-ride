@@ -1,7 +1,7 @@
+use crate::orders::perform_cmd;
 use crate::rest::{get_json, put};
 use common::{Event, Id};
 use seed::{prelude::*, *};
-use std::future::Future;
 
 pub type Model = Event;
 
@@ -30,11 +30,6 @@ pub fn join_event(id: Id, orders: &mut impl Orders<Msg>) {
             Err(error) => Msg::Error(error),
         }
     });
-}
-
-// TODO: move to common code
-fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
-    orders.perform_cmd(cmd);
 }
 
 #[derive(Clone)]

@@ -1,7 +1,7 @@
+use crate::orders::perform_cmd;
 use crate::rest::get_json;
 use common::Event;
 use seed::{prelude::*, *};
-use std::future::Future;
 
 pub type Model = Vec<Event>;
 
@@ -17,11 +17,6 @@ pub fn request_events(orders: &mut impl Orders<Msg>) {
             Err(error) => Msg::Error(error),
         }
     });
-}
-
-// TODO: move to common code
-fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
-    orders.perform_cmd(cmd);
 }
 
 #[derive(Clone)]

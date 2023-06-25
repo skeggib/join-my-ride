@@ -1,7 +1,7 @@
+use crate::orders::perform_cmd;
 use crate::rest::put_json;
 use common::Event;
 use seed::{prelude::*, *};
-use std::future::Future;
 
 #[derive(Clone)]
 pub enum Model {
@@ -21,11 +21,6 @@ pub enum Msg {
     PublishEventNameChange(String),
     PublishEventClick,
     OnEventPublished,
-}
-
-// TODO: move to common code
-fn perform_cmd(orders: &mut impl Orders<Msg>, cmd: impl Future<Output = Msg> + 'static) {
-    orders.perform_cmd(cmd);
 }
 
 async fn put_event(name: String) -> Result<(), String> {
