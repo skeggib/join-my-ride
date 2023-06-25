@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use derivative::Derivative;
 use serde;
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,7 @@ pub struct Event {
     #[derivative(PartialEq = "ignore")]
     pub id: Id,
     pub name: String,
+    pub participants: HashSet<String>,
 }
 
 impl Event {
@@ -19,6 +22,7 @@ impl Event {
         Event {
             id: Id::new_v4(),
             name: name,
+            participants: HashSet::new(),
         }
     }
 }
