@@ -36,19 +36,21 @@ impl State {
 
 #[get("/<_url..>")]
 async fn index(_url: PathBuf) -> Option<NamedFile> {
-    NamedFile::open(Path::new("frontend/index.html")).await.ok()
+    NamedFile::open(Path::new("../frontend/index.html"))
+        .await
+        .ok()
 }
 
 #[get("/pkg/package.js")]
 async fn package_js() -> Option<NamedFile> {
-    NamedFile::open(Path::new("frontend/pkg/package.js"))
+    NamedFile::open(Path::new("../frontend/pkg/package.js"))
         .await
         .ok()
 }
 
 #[get("/pkg/package_bg.wasm")]
 async fn package_wasm() -> Option<NamedFile> {
-    NamedFile::open(Path::new("frontend/pkg/package_bg.wasm"))
+    NamedFile::open(Path::new("../frontend/pkg/package_bg.wasm"))
         .await
         .ok()
 }
