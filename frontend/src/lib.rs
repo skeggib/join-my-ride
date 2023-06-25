@@ -3,8 +3,7 @@
 // but some rules are too "annoying" or are not applicable for your case.)
 #![allow(clippy::wildcard_imports)]
 
-mod event_list;
-mod event_publication;
+mod component;
 mod page;
 mod rest;
 

@@ -1,4 +1,4 @@
-use crate::{event_list, event_publication};
+use crate::component::{event_list, event_publication};
 use seed::{prelude::*, *};
 
 pub fn init(_: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
