@@ -5,9 +5,12 @@ use rocket::{
     data::{FromData, ToByteUnit},
     fs::NamedFile,
     http::Status,
+    request::FromRequest,
+    response::status::NotFound,
     Data, Request,
 };
 use std::{
+    collections::HashMap,
     ops::DerefMut,
     path::{Path, PathBuf},
     str::FromStr,
@@ -112,6 +115,33 @@ impl<'r> FromRequest<'r> for User {
     }
 }
 
+#[put("/api/join/<id_str>")]
+fn join_event(
+    id_str: String,
+    state: &rocket::State<State>,
+    user: User,
+) -> Result<(), NotFound<String>> {
+    let id = common::Id::from_str(&id_str).map_err(|err| NotFound::<String>(err.to_string()))?;
+    match state.events.lock() {
+        Ok(mut guard) => {
+            let all_events = guard.deref_mut();
+            let mut found = false;
+            for i in 1..all_events.len() {
+                if all_events[i].id == id {
+                    found = true;
+                    all_events[i].participants.insert(user.name.clone());
+                }
+            }
+            if found {
+                Ok(())
+            } else {
+                Err(NotFound::<String>("event not found".to_owned()))
+            }
+        }
+        Err(err) => Err(NotFound::<String>(err.to_string())),
+    }
+}
+
 struct EventData {
     event: Event,
 }
@@ -144,12 +174,13 @@ fn rocket() -> _ {
     rocket::build().manage(State::new()).mount(
         "/",
         routes![
+            event,
+            events,
             index,
+            join_event,
             package_js,
             package_wasm,
-            events,
-            event,
-            publish_event
+            publish_event,
         ],
     )
 }
@@ -157,7 +188,7 @@ fn rocket() -> _ {
 #[cfg(test)]
 mod test {
     use super::rocket;
-    use common::Event;
+    use common::{Event, Id};
     use rocket::http::{ContentType, Status};
     use rocket::local::blocking::Client;
 
@@ -269,5 +300,132 @@ mod test {
             .filter(has_name(published_event_name))
             .collect::<Vec<Event>>()
             .is_empty());
+    }
+
+    fn publish_event(client: &Client, event: &Event) -> Result<(), String> {
+        let event_json = serde_json::to_string(&event).unwrap();
+        let response = client
+            .put(uri!("/api/event"))
+            .header(ContentType::JSON)
+            .body(event_json)
+            .dispatch();
+        if response.status() == Status::Ok {
+            Ok(())
+        } else {
+            Err(format!(
+                "cannot publish event, received code {}:\n{}",
+                response.status(),
+                response.into_string().unwrap()
+            ))
+        }
+    }
+
+    fn get_event(client: &Client, id: Id) -> Result<Event, String> {
+        let response = client.get(format!("/api/event/{}", id)).dispatch();
+        if response.status() != Status::Ok {
+            return Err(format!(
+                "cannot publish event, received code {}:\n{}",
+                response.status(),
+                response.into_string().unwrap()
+            ));
+        }
+        let event: Event = serde_json::from_str(response.into_string().unwrap().as_str()).unwrap();
+        Ok(event)
+    }
+
+    fn join_event(client: &Client, id: Id, token: &str) -> Result<(), String> {
+        let response = client
+            .put(format!("/api/join/{}", id))
+            .header(rocket::http::Header {
+                name: "authorization".into(),
+                value: format!("Bearer {}", token).into(),
+            })
+            .dispatch();
+        if response.status() == Status::Ok {
+            Ok(())
+        } else {
+            Err(format!(
+                "cannot join event, received code {}:\n{}",
+                response.status(),
+                response.into_string().unwrap()
+            ))
+        }
+    }
+
+    #[test]
+    fn joining_an_event() {
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+
+        // given an event
+        let event = Event::new("some_event".to_owned());
+        assert_eq!(publish_event(&client, &event), Ok(()));
+
+        // when a logged-in user requests to join the event
+        let response = client
+            .put(format!("/api/join/{}", event.id))
+            .header(rocket::http::Header {
+                name: "authorization".into(),
+                value: "Bearer valid_token".into(),
+            })
+            .dispatch();
+
+        // then the server responds with a success code
+        assert_eq!(response.status(), Status::Ok);
+
+        // then the user is added to the list of participants in the event
+        let updated_event = get_event(&client, event.id).unwrap();
+        assert!(updated_event
+            .participants
+            .contains(&"valid_user".to_owned()));
+    }
+
+    #[test]
+    fn joining_a_non_existing_event() {
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+
+        // given a non-existing event
+        let id = Id::new_v4();
+        assert!(get_event(&client, id).is_err());
+
+        // when a logged-in user requests to join the event
+        let response = client
+            .put(format!("/api/join/{}", id))
+            .header(rocket::http::Header {
+                name: "authorization".into(),
+                value: "Bearer valid_token".into(),
+            })
+            .dispatch();
+
+        // then the server responds with a not found code
+        assert_eq!(response.status(), Status::NotFound);
+    }
+
+    #[test]
+    fn joining_an_event_twice() {
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+
+        // given an event that a user already joined
+        let event = Event::new("some_event".to_owned());
+        assert_eq!(publish_event(&client, &event), Ok(()));
+        assert_eq!(join_event(&client, event.id, "valid_token"), Ok(()));
+
+        // when a logged-in user requests to join the event
+        let response = client
+            .put(format!("/api/join/{}", event.id))
+            .header(rocket::http::Header {
+                name: "authorization".into(),
+                value: "Bearer valid_token".into(),
+            })
+            .dispatch();
+
+        // then the server responds with a success code
+        assert_eq!(response.status(), Status::Ok);
+
+        // then the user is not added again to the list of participants in the event
+        let updated_event = get_event(&client, event.id).unwrap();
+        assert_eq!(updated_event.participants.len(), 1);
+        assert!(updated_event
+            .participants
+            .contains(&"valid_user".to_owned()));
     }
 }
