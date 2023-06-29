@@ -10,7 +10,6 @@ mod atoms;
 mod molecules;
 mod orders;
 mod pages;
-mod rest;
 
 #[wasm_bindgen(start)]
 pub fn start() {

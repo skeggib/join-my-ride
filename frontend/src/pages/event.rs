@@ -1,5 +1,4 @@
 use crate::orders::perform_cmd;
-use crate::rest::{get_json, put};
 use crate::{atoms::button, molecules::event_details};
 use common::{Event, Id};
 use seed::{prelude::*, *};
@@ -13,14 +12,10 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
     .map_err(|err| err.to_string())
 }
 
-async fn get_event(id: Id) -> Result<Event, String> {
-    get_json::<Event>(&format!("/api/event/{}", id)).await
-}
-
 pub fn request_event(id: Id, orders: &mut impl Orders<Msg>) {
     log!("get event {}", id);
     perform_cmd(orders, async move {
-        match get_event(id).await {
+        match common::api::get_event(id).await {
             Ok(event) => Msg::OnGetEventResponse(event),
             Err(error) => Msg::Error(error),
         }
@@ -30,8 +25,8 @@ pub fn request_event(id: Id, orders: &mut impl Orders<Msg>) {
 pub fn join_event(id: Id, orders: &mut impl Orders<Msg>) {
     log!("join event {}", id);
     orders.perform_cmd(async move {
-        match put(&format!("/api/join/{}", id)).await {
-            Ok(_) => match get_event(id).await {
+        match common::api::join_event(id).await {
+            Ok(_) => match common::api::get_event(id).await {
                 Ok(event) => Msg::OnGetEventResponse(event),
                 Err(error) => Msg::Error(error),
             },

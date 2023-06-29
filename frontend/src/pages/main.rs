@@ -1,9 +1,6 @@
-use std::clone;
-
 use crate::molecules::event_publication_form;
 use crate::molecules::events_list;
 use crate::orders::perform_cmd;
-use crate::rest::get_json;
 use common::Event;
 use seed::{prelude::*, *};
 
@@ -114,14 +111,10 @@ pub fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
-async fn get_events() -> Result<Vec<Event>, String> {
-    get_json::<Vec<Event>>("/api/events").await
-}
-
 pub fn request_events(orders: &mut impl Orders<Msg>) {
     log!("get all events");
     perform_cmd(orders, async {
-        match get_events().await {
+        match common::api::get_events().await {
             Ok(events) => Msg::OnGetEventsResponse(events),
             Err(error) => Msg::Error(error),
         }
