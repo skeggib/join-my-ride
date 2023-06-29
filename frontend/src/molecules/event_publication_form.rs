@@ -1,7 +1,5 @@
 use crate::atoms::{button, input};
 use crate::orders::perform_cmd;
-use crate::rest::put_json;
-use common::Event;
 use seed::{prelude::*, *};
 
 pub fn init() -> Model {
@@ -43,16 +41,11 @@ pub enum PrivateMsg {
     PublishButton(button::Msg),
 }
 
-async fn put_event(name: String) -> Result<(), String> {
-    let event = Event::new(name);
-    put_json("/api/event", &event).await
-}
-
 fn publish_event(model: &Model, orders: &mut impl Orders<Msg>) {
     log!("publish event");
     let name = model.event_name.value.clone();
     perform_cmd(orders, async move {
-        match put_event(name).await {
+        match common::api::publish_event(name).await {
             Ok(_) => Msg::Public(PublicMsg::EventPublished),
             Err(error) => {
                 error!(error);

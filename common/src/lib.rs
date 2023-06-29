@@ -1,9 +1,12 @@
-use std::collections::HashSet;
-
 use derivative::Derivative;
 use serde;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use uuid::Uuid;
+
+pub mod api;
+mod json;
+mod rest;
 
 pub type Id = Uuid;
 
