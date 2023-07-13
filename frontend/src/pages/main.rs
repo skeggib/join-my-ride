@@ -6,13 +6,20 @@ use seed::{prelude::*, *};
 
 pub fn init(_: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
     request_events(orders);
-    Model::Loading
+    Model {
+        state: State::Loading,
+    }
 }
 
 type ErrorMessage = String;
 
 #[derive(Clone)]
-pub enum Model {
+pub struct Model {
+    state: State,
+}
+
+#[derive(Clone)]
+pub enum State {
     Loading,
     Loaded(Loaded),
     Failed(ErrorMessage),
@@ -24,6 +31,15 @@ pub struct Loaded {
     pub event_publication_form: event_publication_form::Model,
 }
 
+impl Loaded {
+    fn new(events: Vec<Event>) -> Loaded {
+        Loaded {
+            event_list: events_list::init(events),
+            event_publication_form: event_publication_form::init(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Msg {
     OnGetEventsResponse(Vec<Event>),
@@ -31,70 +47,52 @@ pub enum Msg {
     Error(String),
 }
 
-pub fn update(msg: Msg, model: &Model, orders: &mut impl Orders<Msg>) -> Model {
-    match model {
-        Model::Loading => update_loading(msg),
-        Model::Loaded(loaded) => match update_loaded(msg, loaded, orders) {
-            Ok(new_loaded) => Model::Loaded(new_loaded),
-            Err(error) => Model::Failed(error),
-        },
-        Model::Failed(failed) => Model::Failed(failed.into()),
-    }
-}
-
-fn update_loading(msg: Msg) -> Model {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::OnGetEventsResponse(events) => Model::Loaded(Loaded {
-            event_list: events_list::init(events),
-            event_publication_form: event_publication_form::init(),
-        }),
-        Msg::EventPublication(_) => {
-            error!("received a publication form message while loading");
-            Model::Loading
-        }
-        Msg::Error(error) => Model::Failed(error),
+        Msg::OnGetEventsResponse(events) => on_get_events_response_msg(events, model, orders),
+        Msg::EventPublication(msg) => event_publication_form_msg(msg, model, orders),
+        Msg::Error(err) => model.state = State::Failed(err),
     }
 }
 
-fn update_loaded(
-    msg: Msg,
-    loaded: &Loaded,
+fn on_get_events_response_msg(events: Vec<Event>, model: &mut Model, _: &mut impl Orders<Msg>) {
+    match &mut model.state {
+        State::Loading => model.state = State::Loaded(Loaded::new(events)),
+        State::Loaded(loaded) => loaded.event_list = events_list::init(events),
+        State::Failed(_) => { /* nothing to do */ }
+    }
+}
+
+fn event_publication_form_msg(
+    msg: event_publication_form::Msg,
+    model: &mut Model,
     orders: &mut impl Orders<Msg>,
-) -> Result<Loaded, String> {
-    match msg {
-        Msg::OnGetEventsResponse(events) => Ok(Loaded {
-            event_list: events_list::init(events),
-            event_publication_form: loaded.event_publication_form.clone(),
-        }),
-        Msg::EventPublication(event_publication_msg) => match event_publication_msg {
-            event_publication_form::Msg::Public(public_msg) => match public_msg {
+) {
+    match &mut model.state {
+        State::Loading => error!("received an event publication form msg while loading"),
+        State::Loaded(loaded) => match msg {
+            event_publication_form::Msg::Public(msg) => match msg {
                 event_publication_form::PublicMsg::EventPublished => {
                     request_events(orders);
-                    Ok(Loaded {
-                        event_list: loaded.event_list.clone(),
-                        event_publication_form: event_publication_form::init(),
-                    })
+                    loaded.event_publication_form = event_publication_form::init();
                 }
             },
-            event_publication_form::Msg::Private(msg) => Ok(Loaded {
-                event_list: loaded.event_list.clone(),
-                event_publication_form: event_publication_form::update(
-                    msg,
-                    &loaded.event_publication_form,
-                    &mut orders.proxy(Msg::EventPublication),
-                )?,
-            }),
+            event_publication_form::Msg::Private(msg) => event_publication_form::update(
+                msg,
+                &mut loaded.event_publication_form,
+                &mut orders.proxy(Msg::EventPublication),
+            ),
         },
-        Msg::Error(error) => Err(error),
+        State::Failed(_) => error!("received an event publication form msg while failed"),
     }
 }
 
 pub fn view(model: &Model) -> Node<Msg> {
     div![
         h1!("join my ride"),
-        match &model {
-            Model::Loading => div!["loading..."],
-            Model::Loaded(loaded_state) => {
+        match &model.state {
+            State::Loading => div!["loading..."],
+            State::Loaded(loaded_state) => {
                 div![
                     h2!("all events"),
                     events_list::view(&loaded_state.event_list).map_msg(|_| {
@@ -106,7 +104,7 @@ pub fn view(model: &Model) -> Node<Msg> {
                         .map_msg(Msg::EventPublication),
                 ]
             }
-            Model::Failed(error) => div![error],
+            State::Failed(error) => div![error],
         }
     ]
 }
