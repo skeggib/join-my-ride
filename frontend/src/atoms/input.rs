@@ -7,13 +7,11 @@ pub fn init(placeholder: String) -> Model {
     }
 }
 
-#[derive(Clone)]
 pub struct Model {
     placeholder: String,
     pub value: String,
 }
 
-#[derive(Clone)]
 pub enum Msg {
     ValueChange(String),
 }

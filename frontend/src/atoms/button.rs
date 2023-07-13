@@ -4,12 +4,10 @@ pub fn init(name: String) -> Model {
     Model { name: name }
 }
 
-#[derive(Clone)]
 pub struct Model {
     name: String,
 }
 
-#[derive(Clone)]
 pub enum Msg {
     Click,
 }

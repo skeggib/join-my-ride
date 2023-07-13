@@ -13,35 +13,29 @@ pub fn init(username: Option<String>) -> Model {
     }
 }
 
-#[derive(Clone)]
 pub struct Model {
     state: State,
 }
 
-#[derive(Clone)]
 enum State {
     SignedIn(SignedIn),
     SignedOut,
 }
 
-#[derive(Clone)]
 struct SignedIn {
     username: String,
     logout_button: button::Model,
 }
 
-#[derive(Clone)]
 pub enum Msg {
     Public(PublicMsg),
     Private(PrivateMsg),
 }
 
-#[derive(Clone)]
 pub enum PublicMsg {
     SignedOut,
 }
 
-#[derive(Clone)]
 pub enum PrivateMsg {
     LogoutButton(button::Msg),
     SignedOut,

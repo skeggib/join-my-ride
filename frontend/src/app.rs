@@ -9,7 +9,7 @@ pub fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
     let context = Context { username: None };
     let current_url = url.clone();
     Model {
-        page: page_from_url(&mut url, None, context.clone(), orders),
+        page: page_from_url(&mut url, None, &context, orders),
         current_url: current_url,
         context: context,
     }
@@ -26,7 +26,7 @@ fn parse_url(url: &mut Url) -> Route {
 fn page_from_url(
     url: &mut Url,
     previous_url: Option<Url>,
-    context: Context,
+    context: &Context,
     orders: &mut impl Orders<Msg>,
 ) -> Page {
     match parse_url(url) {
@@ -41,14 +41,12 @@ fn page_from_url(
     }
 }
 
-#[derive(Clone)]
 enum Page {
     Main(pages::main::Model),
     Event(pages::event::Model),
     Login(pages::login::Model),
 }
 
-#[derive(Clone)]
 pub struct Context {
     pub username: Option<String>,
 }
@@ -59,7 +57,6 @@ pub struct Model {
     context: Context,
 }
 
-#[derive(Clone)]
 pub enum Msg {
     UrlChanged(subs::UrlChanged),
     Main(pages::main::Msg),
@@ -67,7 +64,6 @@ pub enum Msg {
     Login(pages::login::Msg),
 }
 
-#[derive(Clone)]
 enum Route {
     Main,
     Event,
@@ -85,7 +81,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 model.current_url.clone()
             ));
             model.current_url = new_url.clone();
-            model.page = page_from_url(&mut new_url, previous_url, model.context.clone(), orders);
+            model.page = page_from_url(&mut new_url, previous_url, &model.context, orders);
         }
         Msg::Main(main_msg) => {
             if let Page::Main(main_model) = &mut model.page {

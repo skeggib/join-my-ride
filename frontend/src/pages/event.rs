@@ -54,19 +54,16 @@ pub fn init(url: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
 
 type ErrorMessage = String;
 
-#[derive(Clone)]
 pub struct Model {
     state: State,
 }
 
-#[derive(Clone)]
 pub enum State {
     Loading,
     Loaded(Loaded),
     Failed(ErrorMessage),
 }
 
-#[derive(Clone)]
 pub struct Loaded {
     event: Event,
     event_details: event_details::Model,
@@ -85,7 +82,6 @@ impl Loaded {
     }
 }
 
-#[derive(Clone)]
 pub enum Msg {
     OnGetEventResponse(Event),
     Error(String),

@@ -5,7 +5,6 @@ pub fn init(events: Vec<Event>) -> Model {
     Model { events: events }
 }
 
-#[derive(Clone)]
 pub struct Model {
     events: Vec<Event>,
 }

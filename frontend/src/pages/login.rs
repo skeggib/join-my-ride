@@ -6,11 +6,11 @@ use crate::atoms::{button, input};
 pub fn init(
     url: &mut Url,
     target_url: Option<Url>,
-    context: Context,
+    context: &Context,
     orders: &mut impl Orders<Msg>,
 ) -> Model {
-    let stage = match context.username {
-        Some(username) => Stage::SignedIn,
+    let stage = match &context.username {
+        Some(_) => Stage::SignedIn,
         None => Stage::SignedOut(SignedOut {
             username_input: input::init("username".into()),
             login_button: button::init("login".into()),
@@ -22,37 +22,31 @@ pub fn init(
     }
 }
 
-#[derive(Clone)]
 pub struct Model {
     stage: Stage,
     url: Option<Url>,
 }
 
-#[derive(Clone)]
 pub enum Stage {
     SignedOut(SignedOut),
     LoggingIn,
     SignedIn,
 }
 
-#[derive(Clone)]
 struct SignedOut {
     username_input: input::Model,
     login_button: button::Model,
 }
 
-#[derive(Clone)]
 pub enum Msg {
     Public(PublicMsg),
     Private(PrivateMsg),
 }
 
-#[derive(Clone)]
 pub enum PublicMsg {
     LoggedIn(String, Option<Url>),
 }
 
-#[derive(Clone)]
 pub enum PrivateMsg {
     UsernameInput(input::Msg),
     LoginButton(button::Msg),
