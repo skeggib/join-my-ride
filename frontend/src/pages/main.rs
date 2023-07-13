@@ -15,19 +15,16 @@ pub fn init(_: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
 
 type ErrorMessage = String;
 
-#[derive(Clone)]
 pub struct Model {
     state: State,
 }
 
-#[derive(Clone)]
 pub enum State {
     Loading,
     Loaded(Loaded),
     Failed(ErrorMessage),
 }
 
-#[derive(Clone)]
 pub struct Loaded {
     pub event_list: events_list::Model,
     pub event_publication_form: event_publication_form::Model,
@@ -44,7 +41,6 @@ impl Loaded {
     }
 }
 
-#[derive(Clone)]
 pub enum Msg {
     OnGetEventsResponse(Vec<Event>),
     EventPublication(event_publication_form::Msg),

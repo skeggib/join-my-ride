@@ -5,7 +5,6 @@ pub fn init(event: Event) -> Model {
     Model { event: event }
 }
 
-#[derive(Clone)]
 pub struct Model {
     event: Event,
 }

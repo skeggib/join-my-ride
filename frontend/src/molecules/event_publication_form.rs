@@ -10,32 +10,27 @@ pub fn init() -> Model {
     }
 }
 
-#[derive(Clone)]
 pub struct Model {
     state: State,
     event_name: input::Model,
     publish_button: button::Model,
 }
 
-#[derive(Clone)]
 pub enum State {
     Typing,
     Publishing,
     Invalid(String),
 }
 
-#[derive(Clone)]
 pub enum Msg {
     Public(PublicMsg),
     Private(PrivateMsg),
 }
 
-#[derive(Clone)]
 pub enum PublicMsg {
     EventPublished,
 }
 
-#[derive(Clone)]
 pub enum PrivateMsg {
     EventName(input::Msg),
     PublishButton(button::Msg),
