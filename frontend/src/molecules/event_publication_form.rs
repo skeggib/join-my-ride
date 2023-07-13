@@ -55,64 +55,50 @@ fn publish_event(model: &Model, orders: &mut impl Orders<Msg>) {
     });
 }
 
-pub fn update(
-    msg: PrivateMsg,
-    model: &Model,
-    orders: &mut impl Orders<Msg>,
-) -> Result<Model, String> {
+pub fn update(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match model.state {
         State::Typing => update_typing(msg, model, orders),
-        State::Publishing => update_publishing(msg, model),
-        State::Invalid(_) => update_invalid(msg, model),
+        State::Publishing => update_publishing(msg, model, orders),
+        State::Invalid(_) => update_invalid(msg, model, orders),
     }
 }
 
-fn update_typing(
-    msg: PrivateMsg,
-    model: &Model,
-    orders: &mut impl Orders<Msg>,
-) -> Result<Model, String> {
+fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
-            let mut new_model = model.clone();
-            new_model.event_name = input::update(&model.event_name, &msg);
-            Ok(new_model)
+            model.event_name = input::update(&model.event_name, &msg);
         }
         PrivateMsg::PublishButton(button::Msg::Click) => {
             if model.event_name.value.is_empty() {
-                let mut new_model = model.clone();
-                new_model.state = State::Invalid("The name is required".into());
-                Ok(new_model)
+                model.state = State::Invalid("The name is required".into());
             } else {
                 publish_event(model, orders);
-                let mut new_model = model.clone();
-                new_model.state = State::Publishing;
-                Ok(new_model)
+                model.state = State::Publishing;
             }
         }
     }
 }
 
-fn update_publishing(msg: PrivateMsg, model: &Model) -> Result<Model, String> {
+fn update_publishing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
-            let mut new_model = model.clone();
-            new_model.event_name = input::update(&model.event_name, &msg);
-            Ok(new_model)
+            model.event_name = input::update(&model.event_name, &msg);
         }
-        PrivateMsg::PublishButton(button::Msg::Click) => Ok(model.clone()),
+        PrivateMsg::PublishButton(button::Msg::Click) => {
+            error!("received a publish button click msg while publishing")
+        }
     }
 }
 
-fn update_invalid(msg: PrivateMsg, model: &Model) -> Result<Model, String> {
+fn update_invalid(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
-            let mut new_model = model.clone();
-            new_model.state = State::Typing;
-            new_model.event_name = input::update(&model.event_name, &msg);
-            Ok(new_model)
+            model.state = State::Typing;
+            model.event_name = input::update(&model.event_name, &msg);
         }
-        PrivateMsg::PublishButton(button::Msg::Click) => Ok(model.clone()),
+        PrivateMsg::PublishButton(button::Msg::Click) => {
+            error!("received a publish button click msg while being an invalid form")
+        }
     }
 }
 

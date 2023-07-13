@@ -53,12 +53,12 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Main(main_msg) => {
             if let Page::Main(model) = &mut model.page {
-                *model = pages::main::update(main_msg, model, &mut orders.proxy(Msg::Main));
+                pages::main::update(main_msg, model, &mut orders.proxy(Msg::Main));
             }
         }
         Msg::Event(event_msg) => {
             if let Page::Event(model) = &mut model.page {
-                *model = pages::event::update(event_msg, model, &mut orders.proxy(Msg::Event));
+                pages::event::update(event_msg, model, &mut orders.proxy(Msg::Event));
             }
         }
     }

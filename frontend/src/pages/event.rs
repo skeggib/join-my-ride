@@ -39,16 +39,25 @@ pub fn init(url: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
             request_event(id, orders);
-            Model::Loading
+            Model {
+                state: State::Loading,
+            }
         }
-        Err(err) => Model::Failed(err),
+        Err(err) => Model {
+            state: State::Failed(err),
+        },
     }
 }
 
 type ErrorMessage = String;
 
 #[derive(Clone)]
-pub enum Model {
+pub struct Model {
+    state: State,
+}
+
+#[derive(Clone)]
+pub enum State {
     Loading,
     Loaded(Loaded),
     Failed(ErrorMessage),
@@ -61,6 +70,16 @@ pub struct Loaded {
     join_button: button::Model,
 }
 
+impl Loaded {
+    fn new(event: Event) -> Loaded {
+        Loaded {
+            event: event.clone(),
+            event_details: event_details::init(event),
+            join_button: button::init("join".into()),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum Msg {
     OnGetEventResponse(Event),
@@ -68,54 +87,38 @@ pub enum Msg {
     JoinButton(button::Msg),
 }
 
-pub fn update(msg: Msg, model: &Model, orders: &mut impl Orders<Msg>) -> Model {
-    match model {
-        Model::Loading => update_loading(msg),
-        Model::Loaded(loaded) => match update_loaded(msg, loaded, orders) {
-            Ok(new_loaded) => Model::Loaded(new_loaded),
-            Err(error) => Model::Failed(error),
+pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+    match msg {
+        Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, orders),
+        Msg::Error(err) => model.state = State::Failed(err),
+        Msg::JoinButton(msg) => join_button_msg(msg, model, orders),
+    }
+}
+
+fn on_get_event_response_msg(event: Event, model: &mut Model, _: &mut impl Orders<Msg>) {
+    match &mut model.state {
+        State::Loading => model.state = State::Loaded(Loaded::new(event)),
+        State::Loaded(loaded) => model.state = State::Loaded(Loaded::new(event)),
+        State::Failed(_) => { /* nothing to do */ }
+    }
+}
+
+fn join_button_msg(msg: button::Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+    match &mut model.state {
+        State::Loading => error!("received a join button msg while loading"),
+        State::Loaded(loaded) => match msg {
+            button::Msg::Click => join_event(loaded.event.id, orders),
         },
-        Model::Failed(failed) => Model::Failed(failed.into()),
-    }
-}
-
-fn update_loading(msg: Msg) -> Model {
-    match msg {
-        Msg::OnGetEventResponse(event) => Model::Loaded(Loaded {
-            event: event.clone(),
-            event_details: event_details::init(event),
-            join_button: button::init("join".to_owned()),
-        }),
-        Msg::Error(error) => Model::Failed(error),
-        Msg::JoinButton(button::Msg::Click) => todo!(),
-    }
-}
-
-fn update_loaded(
-    msg: Msg,
-    loaded: &Loaded,
-    orders: &mut impl Orders<Msg>,
-) -> Result<Loaded, String> {
-    match msg {
-        Msg::OnGetEventResponse(event) => Ok(Loaded {
-            event: event.clone(),
-            event_details: event_details::init(event),
-            join_button: button::init("join".to_owned()),
-        }),
-        Msg::Error(error) => Err(error),
-        Msg::JoinButton(_) => {
-            join_event(loaded.event.id, orders);
-            Ok(loaded.clone())
-        }
+        State::Failed(_) => error!("received a join button msg while failed"),
     }
 }
 
 pub fn view(model: &Model) -> Node<Msg> {
     div![
         h1!("join my ride"),
-        match model {
-            Model::Loading => div!["loading..."],
-            Model::Loaded(loaded) => div![
+        match &model.state {
+            State::Loading => div!["loading..."],
+            State::Loaded(loaded) => div![
                 h2!("event"),
                 &event_details::view(&loaded.event_details).map_msg(|_| {
                     // TODO: remove this map_msg since events_list does not have any
@@ -127,7 +130,7 @@ pub fn view(model: &Model) -> Node<Msg> {
                 )
                 .map_msg(Msg::JoinButton)
             ],
-            Model::Failed(err) => div![err],
+            State::Failed(err) => div![err],
         }
     ]
 }
