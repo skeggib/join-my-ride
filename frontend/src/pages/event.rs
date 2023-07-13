@@ -1,6 +1,8 @@
 use crate::app::Context;
+use crate::atoms::button;
+use crate::molecules::event_details;
+use crate::molecules::login_bar;
 use crate::orders::perform_cmd;
-use crate::{atoms::button, molecules::event_details};
 use common::{Event, Id};
 use seed::{prelude::*, *};
 use std::str::FromStr;
@@ -69,14 +71,16 @@ pub struct Loaded {
     event: Event,
     event_details: event_details::Model,
     join_button: button::Model,
+    login_bar: login_bar::Model,
 }
 
 impl Loaded {
-    fn new(event: Event) -> Loaded {
+    fn new(event: Event, context: &Context) -> Loaded {
         Loaded {
             event: event.clone(),
             event_details: event_details::init(event),
             join_button: button::init("join".into()),
+            login_bar: login_bar::init(context.username.clone()),
         }
     }
 }
@@ -86,20 +90,27 @@ pub enum Msg {
     OnGetEventResponse(Event),
     Error(String),
     JoinButton(button::Msg),
+    LoginBar(login_bar::Msg),
 }
 
 pub fn update(msg: Msg, model: &mut Model, context: &mut Context, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, orders),
+        Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, context, orders),
         Msg::Error(err) => model.state = State::Failed(err),
         Msg::JoinButton(msg) => join_button_msg(msg, model, orders),
+        Msg::LoginBar(msg) => login_bar_msg(msg, model, context, orders),
     }
 }
 
-fn on_get_event_response_msg(event: Event, model: &mut Model, _: &mut impl Orders<Msg>) {
+fn on_get_event_response_msg(
+    event: Event,
+    model: &mut Model,
+    context: &mut Context,
+    _: &mut impl Orders<Msg>,
+) {
     match &mut model.state {
-        State::Loading => model.state = State::Loaded(Loaded::new(event)),
-        State::Loaded(loaded) => model.state = State::Loaded(Loaded::new(event)),
+        State::Loading => model.state = State::Loaded(Loaded::new(event, context)),
+        State::Loaded(loaded) => model.state = State::Loaded(Loaded::new(event, context)),
         State::Failed(_) => { /* nothing to do */ }
     }
 }
@@ -114,12 +125,36 @@ fn join_button_msg(msg: button::Msg, model: &mut Model, orders: &mut impl Orders
     }
 }
 
+fn login_bar_msg(
+    msg: login_bar::Msg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl Orders<Msg>,
+) {
+    match &mut model.state {
+        State::Loading => error!("received a login bar msg while loading"),
+        State::Loaded(loaded) => match msg {
+            login_bar::Msg::Public(msg) => match msg {
+                login_bar::PublicMsg::SignedOut => { /* nothing to do */ }
+            },
+            login_bar::Msg::Private(msg) => login_bar::update(
+                msg,
+                &mut loaded.login_bar,
+                context,
+                &mut orders.proxy(Msg::LoginBar),
+            ),
+        },
+        State::Failed(_) => error!("received a login bar msg while failed"),
+    }
+}
+
 pub fn view(model: &Model) -> Node<Msg> {
     div![
         h1!(a![attrs![At::Href => "/"], "join my ride"]),
         match &model.state {
             State::Loading => div!["loading..."],
             State::Loaded(loaded) => div![
+                login_bar::view(&loaded.login_bar).map_msg(Msg::LoginBar),
                 h2!("event"),
                 &event_details::view(&loaded.event_details).map_msg(|_| {
                     // TODO: remove this map_msg since events_list does not have any
