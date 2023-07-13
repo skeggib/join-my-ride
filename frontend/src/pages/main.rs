@@ -1,3 +1,4 @@
+use crate::app::Context;
 use crate::molecules::event_publication_form;
 use crate::molecules::events_list;
 use crate::orders::perform_cmd;
@@ -32,7 +33,7 @@ pub struct Loaded {
 }
 
 impl Loaded {
-    fn new(events: Vec<Event>) -> Loaded {
+    fn new(events: Vec<Event>, context: &Context) -> Loaded {
         Loaded {
             event_list: events_list::init(events),
             event_publication_form: event_publication_form::init(),
@@ -47,17 +48,24 @@ pub enum Msg {
     Error(String),
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, context: &mut Context, orders: &mut impl Orders<Msg>) {
     match msg {
-        Msg::OnGetEventsResponse(events) => on_get_events_response_msg(events, model, orders),
-        Msg::EventPublication(msg) => event_publication_form_msg(msg, model, orders),
+        Msg::OnGetEventsResponse(events) => {
+            on_get_events_response_msg(events, model, context, orders)
+        }
+        Msg::EventPublication(msg) => event_publication_form_msg(msg, model, context, orders),
         Msg::Error(err) => model.state = State::Failed(err),
     }
 }
 
-fn on_get_events_response_msg(events: Vec<Event>, model: &mut Model, _: &mut impl Orders<Msg>) {
+fn on_get_events_response_msg(
+    events: Vec<Event>,
+    model: &mut Model,
+    context: &mut Context,
+    _: &mut impl Orders<Msg>,
+) {
     match &mut model.state {
-        State::Loading => model.state = State::Loaded(Loaded::new(events)),
+        State::Loading => model.state = State::Loaded(Loaded::new(events, context)),
         State::Loaded(loaded) => loaded.event_list = events_list::init(events),
         State::Failed(_) => { /* nothing to do */ }
     }
@@ -66,6 +74,7 @@ fn on_get_events_response_msg(events: Vec<Event>, model: &mut Model, _: &mut imp
 fn event_publication_form_msg(
     msg: event_publication_form::Msg,
     model: &mut Model,
+    context: &mut Context,
     orders: &mut impl Orders<Msg>,
 ) {
     match &mut model.state {

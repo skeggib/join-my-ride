@@ -3,8 +3,10 @@ use seed::prelude::*;
 
 pub fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
+    let context = Context { username: None };
     Model {
         page: page_from_url(&mut url, orders),
+        context: context,
     }
 }
 
@@ -28,8 +30,14 @@ enum Page {
     Event(pages::event::Model),
 }
 
+#[derive(Clone)]
+pub struct Context {
+    pub username: Option<String>,
+}
+
 pub struct Model {
     page: Page,
+    context: Context,
 }
 
 #[derive(Clone)]
@@ -52,13 +60,23 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.page = page_from_url(&mut url, orders);
         }
         Msg::Main(main_msg) => {
-            if let Page::Main(model) = &mut model.page {
-                pages::main::update(main_msg, model, &mut orders.proxy(Msg::Main));
+            if let Page::Main(main_model) = &mut model.page {
+                pages::main::update(
+                    main_msg,
+                    main_model,
+                    &mut model.context,
+                    &mut orders.proxy(Msg::Main),
+                );
             }
         }
         Msg::Event(event_msg) => {
-            if let Page::Event(model) = &mut model.page {
-                pages::event::update(event_msg, model, &mut orders.proxy(Msg::Event));
+            if let Page::Event(event_model) = &mut model.page {
+                pages::event::update(
+                    event_msg,
+                    event_model,
+                    &mut model.context,
+                    &mut orders.proxy(Msg::Event),
+                );
             }
         }
     }
