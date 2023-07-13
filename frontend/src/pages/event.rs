@@ -1,3 +1,4 @@
+use crate::app::Context;
 use crate::orders::perform_cmd;
 use crate::{atoms::button, molecules::event_details};
 use common::{Event, Id};
@@ -87,7 +88,7 @@ pub enum Msg {
     JoinButton(button::Msg),
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, context: &mut Context, orders: &mut impl Orders<Msg>) {
     match msg {
         Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, orders),
         Msg::Error(err) => model.state = State::Failed(err),
