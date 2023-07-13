@@ -89,7 +89,7 @@ fn event_publication_form_msg(
 
 pub fn view(model: &Model) -> Node<Msg> {
     div![
-        h1!("join my ride"),
+        h1!(a![attrs![At::Href => "/"], "join my ride"]),
         match &model.state {
             State::Loading => div!["loading..."],
             State::Loaded(loaded_state) => {
