@@ -107,6 +107,7 @@ pub fn view(model: &Model) -> Node<Msg> {
         State::Invalid(_) => false,
     };
     div![
+        h2!("publish an event"),
         match &model.state {
             State::Invalid(error) => div![input, error],
             _ => div![input],

@@ -151,7 +151,6 @@ pub fn view(model: &Model) -> Node<Msg> {
             State::Loading => div!["loading..."],
             State::Loaded(loaded) => div![
                 login_bar::view(&loaded.login_bar).map_msg(Msg::LoginBar),
-                h2!("event"),
                 &event_details::view(&loaded.event_details).map_msg(|_| {
                     // TODO: remove this map_msg since events_list does not have any
                     Msg::Error("unexpected msg from event details".to_owned())
