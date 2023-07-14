@@ -20,5 +20,5 @@ pub fn view(model: &Model) -> Node<()> {
             ]]
         })
         .collect();
-    div![event_divs]
+    div![h2!("all events"), event_divs,]
 }

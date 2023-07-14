@@ -16,5 +16,9 @@ pub fn view(model: &Model) -> Node<()> {
         .iter()
         .map(|participant| div![participant.clone()])
         .collect();
-    div![div![&model.event.name], div![participants_divs],]
+    div![
+        h2!("event"),
+        div![&model.event.name],
+        div![participants_divs],
+    ]
 }
