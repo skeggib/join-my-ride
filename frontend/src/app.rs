@@ -1,10 +1,26 @@
-use crate::{orders::perform_cmd, pages};
+use crate::{
+    orders::{IMyOrders, MyOrders, OrdersImplementation},
+    pages,
+};
 use seed::{
+    app::OrdersContainer,
     prelude::{subs::UrlChanged, *},
     *,
 };
 
-pub fn init(mut url: Url, orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(url: Url, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) -> Model {
+    let mut my_orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Proxy(orders.proxy(
+        |msg| match msg {
+            Msg::UrlChanged(msg) => Msg::UrlChanged(msg),
+            Msg::Main(msg) => Msg::Main(msg),
+            Msg::Event(msg) => Msg::Event(msg),
+            Msg::Login(msg) => Msg::Login(msg),
+        },
+    )));
+    testable_init(url, &mut my_orders)
+}
+
+pub fn testable_init(mut url: Url, orders: &mut impl IMyOrders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
     let context = Context { username: None };
     let current_url = url.clone();
@@ -27,7 +43,7 @@ fn page_from_url(
     url: &mut Url,
     previous_url: Option<Url>,
     context: &Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) -> Page {
     match parse_url(url) {
         Route::Main => Page::Main(pages::main::init(url, &mut orders.proxy(Msg::Main))),
@@ -70,7 +86,19 @@ enum Route {
     Login,
 }
 
-pub fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: Msg, model: &mut Model, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) {
+    let mut my_orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Proxy(orders.proxy(
+        |msg| match msg {
+            Msg::UrlChanged(msg) => Msg::UrlChanged(msg),
+            Msg::Main(msg) => Msg::Main(msg),
+            Msg::Event(msg) => Msg::Event(msg),
+            Msg::Login(msg) => Msg::Login(msg),
+        },
+    )));
+    testable_update(msg, model, &mut my_orders);
+}
+
+pub fn testable_update(msg: Msg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
     match msg {
         Msg::UrlChanged(url_changed) => {
             let mut new_url = url_changed.0;
@@ -137,7 +165,7 @@ pub fn view(model: &Model) -> Node<Msg> {
     }
 }
 
-fn change_url(url: Url, orders: &mut impl Orders<Msg>) {
+fn change_url(url: Url, orders: &mut impl IMyOrders<Msg>) {
     // TODO: update address bar
     orders.notify(UrlChanged(url));
 }

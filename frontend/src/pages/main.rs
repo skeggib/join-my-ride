@@ -3,10 +3,11 @@ use crate::molecules::event_publication_form;
 use crate::molecules::events_list;
 use crate::molecules::login_bar;
 use crate::orders::perform_cmd;
+use crate::orders::IMyOrders;
 use common::Event;
 use seed::{prelude::*, *};
 
-pub fn init(_: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(_: &mut Url, orders: &mut impl IMyOrders<Msg>) -> Model {
     request_events(orders);
     Model {
         state: State::Loading,
@@ -48,7 +49,12 @@ pub enum Msg {
     LoginBar(login_bar::Msg),
 }
 
-pub fn update(msg: Msg, model: &mut Model, context: &mut Context, orders: &mut impl Orders<Msg>) {
+pub fn update(
+    msg: Msg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
+) {
     match msg {
         Msg::OnGetEventsResponse(events) => {
             on_get_events_response_msg(events, model, context, orders)
@@ -63,7 +69,7 @@ fn on_get_events_response_msg(
     events: Vec<Event>,
     model: &mut Model,
     context: &mut Context,
-    _: &mut impl Orders<Msg>,
+    _: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
         State::Loading => model.state = State::Loaded(Loaded::new(events, context)),
@@ -75,8 +81,8 @@ fn on_get_events_response_msg(
 fn event_publication_form_msg(
     msg: event_publication_form::Msg,
     model: &mut Model,
-    context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    _context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
         State::Loading => error!("received an event publication form msg while loading"),
@@ -101,7 +107,7 @@ fn login_bar_msg(
     msg: login_bar::Msg,
     model: &mut Model,
     context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
         State::Loading => error!("received a login bar msg while loading"),
@@ -141,7 +147,7 @@ pub fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
-pub fn request_events(orders: &mut impl Orders<Msg>) {
+pub fn request_events(orders: &mut impl IMyOrders<Msg>) {
     log!("get all events");
     perform_cmd(orders, async {
         match common::api::get_events().await {

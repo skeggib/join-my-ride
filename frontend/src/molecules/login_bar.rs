@@ -1,4 +1,8 @@
-use crate::{app::Context, atoms::button, orders::perform_cmd};
+use crate::{
+    app::Context,
+    atoms::button,
+    orders::{perform_cmd, IMyOrders},
+};
 use seed::{prelude::*, *};
 
 pub fn init(username: Option<String>) -> Model {
@@ -45,7 +49,7 @@ pub fn update(
     msg: PrivateMsg,
     model: &mut Model,
     context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match msg {
         PrivateMsg::LogoutButton(button::Msg::Click) => logout(orders),
@@ -69,13 +73,13 @@ pub fn view(model: &Model) -> Node<Msg> {
     }
 }
 
-fn logout(orders: &mut impl Orders<Msg>) {
+fn logout(orders: &mut impl IMyOrders<Msg>) {
     perform_cmd(orders, async {
         // TODO: logout
         Msg::Private(PrivateMsg::SignedOut)
     });
 }
 
-fn notify_logout(orders: &mut impl Orders<Msg>) {
+fn notify_logout(orders: &mut impl IMyOrders<Msg>) {
     perform_cmd(orders, async { Msg::Public(PublicMsg::SignedOut) });
 }

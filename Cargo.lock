@@ -274,6 +274,7 @@ name = "frontend"
 version = "0.1.0"
 dependencies = [
  "common",
+ "futures",
  "seed",
  "wasm-bindgen-test",
 ]

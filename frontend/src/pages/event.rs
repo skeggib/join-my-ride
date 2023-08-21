@@ -3,6 +3,7 @@ use crate::atoms::button;
 use crate::molecules::event_details;
 use crate::molecules::login_bar;
 use crate::orders::perform_cmd;
+use crate::orders::IMyOrders;
 use common::{Event, Id};
 use seed::{prelude::*, *};
 use std::str::FromStr;
@@ -15,7 +16,7 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
     .map_err(|err| err.to_string())
 }
 
-pub fn request_event(id: Id, orders: &mut impl Orders<Msg>) {
+pub fn request_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
     log!("get event {}", id);
     perform_cmd(orders, async move {
         match common::api::get_event(id).await {
@@ -25,7 +26,7 @@ pub fn request_event(id: Id, orders: &mut impl Orders<Msg>) {
     });
 }
 
-pub fn join_event(id: Id, orders: &mut impl Orders<Msg>) {
+pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
     log!("join event {}", id);
     orders.perform_cmd(async move {
         match common::api::join_event(id).await {
@@ -38,7 +39,7 @@ pub fn join_event(id: Id, orders: &mut impl Orders<Msg>) {
     });
 }
 
-pub fn init(url: &mut Url, orders: &mut impl Orders<Msg>) -> Model {
+pub fn init(url: &mut Url, orders: &mut impl IMyOrders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
             request_event(id, orders);
@@ -89,7 +90,12 @@ pub enum Msg {
     LoginBar(login_bar::Msg),
 }
 
-pub fn update(msg: Msg, model: &mut Model, context: &mut Context, orders: &mut impl Orders<Msg>) {
+pub fn update(
+    msg: Msg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
+) {
     match msg {
         Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, context, orders),
         Msg::Error(err) => model.state = State::Failed(err),
@@ -102,16 +108,16 @@ fn on_get_event_response_msg(
     event: Event,
     model: &mut Model,
     context: &mut Context,
-    _: &mut impl Orders<Msg>,
+    _: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
         State::Loading => model.state = State::Loaded(Loaded::new(event, context)),
-        State::Loaded(loaded) => model.state = State::Loaded(Loaded::new(event, context)),
+        State::Loaded(_loaded) => model.state = State::Loaded(Loaded::new(event, context)),
         State::Failed(_) => { /* nothing to do */ }
     }
 }
 
-fn join_button_msg(msg: button::Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn join_button_msg(msg: button::Msg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
     match &mut model.state {
         State::Loading => error!("received a join button msg while loading"),
         State::Loaded(loaded) => match msg {
@@ -125,7 +131,7 @@ fn login_bar_msg(
     msg: login_bar::Msg,
     model: &mut Model,
     context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
         State::Loading => error!("received a login bar msg while loading"),

@@ -1,5 +1,5 @@
 use crate::atoms::{button, input};
-use crate::orders::perform_cmd;
+use crate::orders::{perform_cmd, IMyOrders};
 use seed::{prelude::*, *};
 
 pub fn init() -> Model {
@@ -36,7 +36,7 @@ pub enum PrivateMsg {
     PublishButton(button::Msg),
 }
 
-fn publish_event(model: &Model, orders: &mut impl Orders<Msg>) {
+fn publish_event(model: &Model, orders: &mut impl IMyOrders<Msg>) {
     log!("publish event");
     let name = model.event_name.value.clone();
     perform_cmd(orders, async move {
@@ -50,7 +50,7 @@ fn publish_event(model: &Model, orders: &mut impl Orders<Msg>) {
     });
 }
 
-pub fn update(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+pub fn update(msg: PrivateMsg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
     match model.state {
         State::Typing => update_typing(msg, model, orders),
         State::Publishing => update_publishing(msg, model, orders),
@@ -58,7 +58,7 @@ pub fn update(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>)
     }
 }
 
-fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.event_name = input::update(&model.event_name, &msg);
@@ -74,7 +74,7 @@ fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Ms
     }
 }
 
-fn update_publishing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn update_publishing(msg: PrivateMsg, model: &mut Model, _orders: &mut impl IMyOrders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.event_name = input::update(&model.event_name, &msg);
@@ -85,7 +85,7 @@ fn update_publishing(msg: PrivateMsg, model: &mut Model, orders: &mut impl Order
     }
 }
 
-fn update_invalid(msg: PrivateMsg, model: &mut Model, orders: &mut impl Orders<Msg>) {
+fn update_invalid(msg: PrivateMsg, model: &mut Model, _orders: &mut impl IMyOrders<Msg>) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.state = State::Typing;
