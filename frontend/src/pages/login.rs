@@ -1,13 +1,16 @@
-use crate::{app::Context, orders::perform_cmd};
+use crate::{
+    app::Context,
+    orders::{perform_cmd, IMyOrders},
+};
 use seed::{prelude::*, *};
 
 use crate::atoms::{button, input};
 
 pub fn init(
-    url: &mut Url,
+    _url: &mut Url,
     target_url: Option<Url>,
     context: &Context,
-    orders: &mut impl Orders<Msg>,
+    _orders: &mut impl IMyOrders<Msg>,
 ) -> Model {
     let stage = match &context.username {
         Some(_) => Stage::SignedIn,
@@ -33,7 +36,7 @@ pub enum Stage {
     SignedIn,
 }
 
-struct SignedOut {
+pub struct SignedOut {
     username_input: input::Model,
     login_button: button::Model,
 }
@@ -57,7 +60,7 @@ pub fn update(
     msg: PrivateMsg,
     model: &mut Model,
     context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match msg {
         PrivateMsg::UsernameInput(msg) => username_input_msg(msg, model, context, orders),
@@ -69,8 +72,8 @@ pub fn update(
 fn username_input_msg(
     msg: input::Msg,
     model: &mut Model,
-    context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    _context: &mut Context,
+    _orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.stage {
         Stage::SignedOut(model) => match msg {
@@ -84,8 +87,8 @@ fn username_input_msg(
 fn login_button_msg(
     msg: button::Msg,
     model: &mut Model,
-    context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    _context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.stage {
         Stage::SignedOut(signed_out) => match msg {
@@ -107,7 +110,7 @@ fn logged_in_msg(
     username: String,
     model: &mut Model,
     context: &mut Context,
-    orders: &mut impl Orders<Msg>,
+    orders: &mut impl IMyOrders<Msg>,
 ) {
     context.username = Some(username.clone());
     model.stage = Stage::SignedIn;
@@ -142,14 +145,14 @@ pub fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
-fn login(username: String, orders: &mut impl Orders<Msg>) {
+fn login(username: String, orders: &mut impl IMyOrders<Msg>) {
     perform_cmd(orders, async {
         // TODO: login
         Msg::Private(PrivateMsg::LoggedIn(username))
     });
 }
 
-fn notify_login(username: String, url: Option<Url>, orders: &mut impl Orders<Msg>) {
+fn notify_login(username: String, url: Option<Url>, orders: &mut impl IMyOrders<Msg>) {
     perform_cmd(orders, async {
         Msg::Public(PublicMsg::LoggedIn(username, url))
     });

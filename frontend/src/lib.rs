@@ -5,11 +5,11 @@
 
 use seed::{prelude::wasm_bindgen, App};
 
-mod app;
-mod atoms;
-mod molecules;
-mod orders;
-mod pages;
+pub mod app;
+pub mod atoms;
+pub mod molecules;
+pub mod orders;
+pub mod pages;
 
 #[wasm_bindgen(start)]
 pub fn start() {
