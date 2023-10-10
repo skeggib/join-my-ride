@@ -148,7 +148,8 @@ pub fn view(model: &Model) -> Node<Msg> {
 }
 
 pub fn request_events(orders: &mut impl IMyOrders<Msg>) {
-    log!("get all events");
+    // TODO: refactor this to use a logging service
+    // log!("get all events");
     perform_cmd(orders, async {
         match common::api::get_events().await {
             Ok(events) => Msg::OnGetEventsResponse(events),
