@@ -37,7 +37,8 @@ pub enum PrivateMsg {
 }
 
 fn publish_event(model: &Model, orders: &mut impl IMyOrders<Msg>) {
-    log!("publish event");
+    // TODO: refactor this to use a logging service
+    // log!("publish event");
     let name = model.event_name.value.clone();
     perform_cmd(orders, async move {
         match common::api::publish_event(name).await {

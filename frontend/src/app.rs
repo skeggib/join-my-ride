@@ -103,11 +103,12 @@ pub fn testable_update(msg: Msg, model: &mut Model, orders: &mut impl IMyOrders<
         Msg::UrlChanged(url_changed) => {
             let mut new_url = url_changed.0;
             let previous_url = Some(model.current_url.clone());
-            log!(format!(
-                "go to url={}, previous={}",
-                new_url.clone(),
-                model.current_url.clone()
-            ));
+            // TODO: refactor this to use a logging service
+            // log!(format!(
+            //     "go to url={}, previous={}",
+            //     new_url.clone(),
+            //     model.current_url.clone()
+            // ));
             model.current_url = new_url.clone();
             model.page = page_from_url(&mut new_url, previous_url, &model.context, orders);
         }

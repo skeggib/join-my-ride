@@ -17,7 +17,8 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
 }
 
 pub fn request_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
-    log!("get event {}", id);
+    // TODO: refactor this to use a logging service
+    // log!("get event {}", id);
     perform_cmd(orders, async move {
         match common::api::get_event(id).await {
             Ok(event) => Msg::OnGetEventResponse(event),
@@ -27,7 +28,8 @@ pub fn request_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
 }
 
 pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
-    log!("join event {}", id);
+    // TODO: refactor this to use a logging service
+    // log!("join event {}", id);
     orders.perform_cmd(async move {
         match common::api::join_event(id).await {
             Ok(_) => match common::api::get_event(id).await {
