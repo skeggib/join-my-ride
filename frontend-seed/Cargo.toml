@@ -1,14 +1,19 @@
 [package]
-name = "frontend"
+name = "frontend-seed"
 version = "0.1.0"
 edition = "2018"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies]
 seed = "0.9.2"
-futures = "0.3"
 
 [dependencies.common]
 path = "../common"
+
+[dependencies.frontend]
+path = "../frontend"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Os']
