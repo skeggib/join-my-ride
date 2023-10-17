@@ -1,21 +1,10 @@
-use crate::{
-    rest::{get_json, put, put_json},
-    Event, Id,
-};
+use crate::{Event, Id};
+use async_trait::async_trait;
 
-pub async fn get_events() -> Result<Vec<Event>, String> {
-    get_json::<Vec<Event>>("/api/events").await
-}
-
-pub async fn get_event(id: Id) -> Result<Event, String> {
-    get_json::<Event>(&format!("/api/event/{}", id)).await
-}
-
-pub async fn publish_event(name: String) -> Result<(), String> {
-    let event = Event::new(name);
-    put_json("/api/event", &event).await
-}
-
-pub async fn join_event(id: Id) -> Result<(), String> {
-    put(&format!("/api/join/{}", id)).await
+#[async_trait(?Send)]
+pub trait BackendApi {
+    async fn get_events(self: &Self) -> Result<Vec<Event>, String>;
+    async fn get_event(self: &Self, id: Id) -> Result<Event, String>;
+    async fn publish_event(self: &Self, name: String) -> Result<(), String>;
+    async fn join_event(self: &Self, id: Id) -> Result<(), String>;
 }

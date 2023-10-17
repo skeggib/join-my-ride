@@ -1,5 +1,25 @@
-use crate::json::parse_json;
+use crate::{json::parse_json, api::BackendApi, Event, Id};
+use async_trait::async_trait;
 use gloo_net::http::Request;
+
+pub struct RestBackend {}
+
+#[async_trait(?Send)]
+impl BackendApi for RestBackend {
+    async fn get_events(self: &Self) -> Result<Vec<Event>, String> {
+        get_json::<Vec<Event>>("/api/events").await
+    }
+    async fn get_event(self: &Self, id: Id) -> Result<Event, String> {
+        get_json::<Event>(&format!("/api/event/{}", id)).await
+    }
+    async fn publish_event(self: &Self, name: String) -> Result<(), String> {
+        let event = Event::new(name);
+        put_json("/api/event", &event).await
+    }
+    async fn join_event(self: &Self, id: Id) -> Result<(), String> {
+        put(&format!("/api/join/{}", id)).await
+    }
+}
 
 fn check_is_ok(response: gloo_net::http::Response) -> Result<gloo_net::http::Response, String> {
     if response.ok() {
