@@ -1,7 +1,10 @@
+use std::rc::Rc;
+
 use crate::{
     orders::{IMyOrders, MyOrders, OrdersImplementation},
     pages,
 };
+use common::{api::BackendApi, rest::RestBackend};
 use seed::{
     app::OrdersContainer,
     prelude::{subs::UrlChanged, *},
@@ -17,12 +20,19 @@ pub fn init(url: Url, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) -> Mo
             Msg::Login(msg) => Msg::Login(msg),
         },
     )));
-    testable_init(url, &mut my_orders)
+    testable_init(url, &mut my_orders, Rc::new(RestBackend {}))
 }
 
-pub fn testable_init(mut url: Url, orders: &mut impl IMyOrders<Msg>) -> Model {
+pub fn testable_init(
+    mut url: Url,
+    orders: &mut impl IMyOrders<Msg>,
+    backend: Rc<dyn BackendApi>,
+) -> Model {
     orders.subscribe(Msg::UrlChanged);
-    let context = Context { username: None };
+    let context = Context {
+        username: None,
+        backend: backend,
+    };
     let current_url = url.clone();
     Model {
         page: page_from_url(&mut url, None, &context, orders),
@@ -46,8 +56,16 @@ fn page_from_url(
     orders: &mut impl IMyOrders<Msg>,
 ) -> Page {
     match parse_url(url) {
-        Route::Main => Page::Main(pages::main::init(url, &mut orders.proxy(Msg::Main))),
-        Route::Event => Page::Event(pages::event::init(url, &mut orders.proxy(Msg::Event))),
+        Route::Main => Page::Main(pages::main::init(
+            url,
+            context,
+            &mut orders.proxy(Msg::Main),
+        )),
+        Route::Event => Page::Event(pages::event::init(
+            url,
+            context,
+            &mut orders.proxy(Msg::Event),
+        )),
         Route::Login => Page::Login(pages::login::init(
             url,
             previous_url,
@@ -65,6 +83,7 @@ enum Page {
 
 pub struct Context {
     pub username: Option<String>,
+    pub backend: Rc<dyn BackendApi>,
 }
 
 pub struct Model {

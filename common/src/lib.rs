@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 pub mod api;
 mod json;
-mod rest;
+pub mod rest;
 
 pub type Id = Uuid;
 

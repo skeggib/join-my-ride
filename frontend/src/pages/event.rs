@@ -4,8 +4,10 @@ use crate::molecules::event_details;
 use crate::molecules::login_bar;
 use crate::orders::perform_cmd;
 use crate::orders::IMyOrders;
+use common::api::BackendApi;
 use common::{Event, Id};
 use seed::{prelude::*, *};
+use std::rc::Rc;
 use std::str::FromStr;
 
 fn id_from_url(url: &mut Url) -> Result<Id, String> {
@@ -16,23 +18,23 @@ fn id_from_url(url: &mut Url) -> Result<Id, String> {
     .map_err(|err| err.to_string())
 }
 
-pub fn request_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
+pub fn request_event(id: Id, orders: &mut impl IMyOrders<Msg>, backend: Rc<dyn BackendApi>) {
     // TODO: refactor this to use a logging service
     // log!("get event {}", id);
     perform_cmd(orders, async move {
-        match common::api::get_event(id).await {
+        match backend.get_event(id).await {
             Ok(event) => Msg::OnGetEventResponse(event),
             Err(error) => Msg::Error(error),
         }
     });
 }
 
-pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
+pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>, backend: Rc<dyn BackendApi>) {
     // TODO: refactor this to use a logging service
     // log!("join event {}", id);
     orders.perform_cmd(async move {
-        match common::api::join_event(id).await {
-            Ok(_) => match common::api::get_event(id).await {
+        match backend.join_event(id).await {
+            Ok(_) => match backend.get_event(id).await {
                 Ok(event) => Msg::OnGetEventResponse(event),
                 Err(error) => Msg::Error(error),
             },
@@ -41,10 +43,10 @@ pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>) {
     });
 }
 
-pub fn init(url: &mut Url, orders: &mut impl IMyOrders<Msg>) -> Model {
+pub fn init(url: &mut Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
-            request_event(id, orders);
+            request_event(id, orders, context.backend.clone());
             Model {
                 state: State::Loading,
             }
@@ -101,7 +103,7 @@ pub fn update(
     match msg {
         Msg::OnGetEventResponse(event) => on_get_event_response_msg(event, model, context, orders),
         Msg::Error(err) => model.state = State::Failed(err),
-        Msg::JoinButton(msg) => join_button_msg(msg, model, orders),
+        Msg::JoinButton(msg) => join_button_msg(msg, model, context, orders),
         Msg::LoginBar(msg) => login_bar_msg(msg, model, context, orders),
     }
 }
@@ -119,11 +121,16 @@ fn on_get_event_response_msg(
     }
 }
 
-fn join_button_msg(msg: button::Msg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
+fn join_button_msg(
+    msg: button::Msg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
+) {
     match &mut model.state {
         State::Loading => error!("received a join button msg while loading"),
         State::Loaded(loaded) => match msg {
-            button::Msg::Click => join_event(loaded.event.id, orders),
+            button::Msg::Click => join_event(loaded.event.id, orders, context.backend.clone()),
         },
         State::Failed(_) => error!("received a join button msg while failed"),
     }

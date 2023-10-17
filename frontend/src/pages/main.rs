@@ -1,14 +1,17 @@
+use std::rc::Rc;
+
 use crate::app::Context;
 use crate::molecules::event_publication_form;
 use crate::molecules::events_list;
 use crate::molecules::login_bar;
 use crate::orders::perform_cmd;
 use crate::orders::IMyOrders;
+use common::api::BackendApi;
 use common::Event;
 use seed::{prelude::*, *};
 
-pub fn init(_: &mut Url, orders: &mut impl IMyOrders<Msg>) -> Model {
-    request_events(orders);
+pub fn init(_: &mut Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
+    request_events(orders, context.backend.clone());
     Model {
         state: State::Loading,
     }
@@ -81,7 +84,7 @@ fn on_get_events_response_msg(
 fn event_publication_form_msg(
     msg: event_publication_form::Msg,
     model: &mut Model,
-    _context: &mut Context,
+    context: &mut Context,
     orders: &mut impl IMyOrders<Msg>,
 ) {
     match &mut model.state {
@@ -89,13 +92,14 @@ fn event_publication_form_msg(
         State::Loaded(loaded) => match msg {
             event_publication_form::Msg::Public(msg) => match msg {
                 event_publication_form::PublicMsg::EventPublished => {
-                    request_events(orders);
+                    request_events(orders, context.backend.clone());
                     loaded.event_publication_form = event_publication_form::init();
                 }
             },
             event_publication_form::Msg::Private(msg) => event_publication_form::update(
                 msg,
                 &mut loaded.event_publication_form,
+                context,
                 &mut orders.proxy(Msg::EventPublication),
             ),
         },
@@ -147,11 +151,11 @@ pub fn view(model: &Model) -> Node<Msg> {
     ]
 }
 
-pub fn request_events(orders: &mut impl IMyOrders<Msg>) {
+pub fn request_events(orders: &mut impl IMyOrders<Msg>, backend: Rc<dyn BackendApi>) {
     // TODO: refactor this to use a logging service
     // log!("get all events");
-    perform_cmd(orders, async {
-        match common::api::get_events().await {
+    perform_cmd(orders, async move {
+        match backend.get_events().await {
             Ok(events) => Msg::OnGetEventsResponse(events),
             Err(error) => Msg::Error(error),
         }

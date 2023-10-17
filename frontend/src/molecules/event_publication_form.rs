@@ -1,5 +1,9 @@
+use std::rc::Rc;
+
+use crate::app::Context;
 use crate::atoms::{button, input};
 use crate::orders::{perform_cmd, IMyOrders};
+use common::api::BackendApi;
 use seed::{prelude::*, *};
 
 pub fn init() -> Model {
@@ -36,12 +40,12 @@ pub enum PrivateMsg {
     PublishButton(button::Msg),
 }
 
-fn publish_event(model: &Model, orders: &mut impl IMyOrders<Msg>) {
+fn publish_event(model: &Model, orders: &mut impl IMyOrders<Msg>, backend: Rc<dyn BackendApi>) {
     // TODO: refactor this to use a logging service
     // log!("publish event");
     let name = model.event_name.value.clone();
     perform_cmd(orders, async move {
-        match common::api::publish_event(name).await {
+        match backend.publish_event(name).await {
             Ok(_) => Msg::Public(PublicMsg::EventPublished),
             Err(error) => {
                 error!(error);
@@ -51,15 +55,25 @@ fn publish_event(model: &Model, orders: &mut impl IMyOrders<Msg>) {
     });
 }
 
-pub fn update(msg: PrivateMsg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
+pub fn update(
+    msg: PrivateMsg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
+) {
     match model.state {
-        State::Typing => update_typing(msg, model, orders),
-        State::Publishing => update_publishing(msg, model, orders),
-        State::Invalid(_) => update_invalid(msg, model, orders),
+        State::Typing => update_typing(msg, model, context, orders),
+        State::Publishing => update_publishing(msg, model, context, orders),
+        State::Invalid(_) => update_invalid(msg, model, context, orders),
     }
 }
 
-fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
+fn update_typing(
+    msg: PrivateMsg,
+    model: &mut Model,
+    context: &mut Context,
+    orders: &mut impl IMyOrders<Msg>,
+) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.event_name = input::update(&model.event_name, &msg);
@@ -68,14 +82,19 @@ fn update_typing(msg: PrivateMsg, model: &mut Model, orders: &mut impl IMyOrders
             if model.event_name.value.is_empty() {
                 model.state = State::Invalid("The name is required".into());
             } else {
-                publish_event(model, orders);
+                publish_event(model, orders, context.backend.clone());
                 model.state = State::Publishing;
             }
         }
     }
 }
 
-fn update_publishing(msg: PrivateMsg, model: &mut Model, _orders: &mut impl IMyOrders<Msg>) {
+fn update_publishing(
+    msg: PrivateMsg,
+    model: &mut Model,
+    context: &mut Context,
+    _orders: &mut impl IMyOrders<Msg>,
+) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.event_name = input::update(&model.event_name, &msg);
@@ -86,7 +105,12 @@ fn update_publishing(msg: PrivateMsg, model: &mut Model, _orders: &mut impl IMyO
     }
 }
 
-fn update_invalid(msg: PrivateMsg, model: &mut Model, _orders: &mut impl IMyOrders<Msg>) {
+fn update_invalid(
+    msg: PrivateMsg,
+    model: &mut Model,
+    context: &mut Context,
+    _orders: &mut impl IMyOrders<Msg>,
+) {
     match msg {
         PrivateMsg::EventName(msg) => {
             model.state = State::Typing;
