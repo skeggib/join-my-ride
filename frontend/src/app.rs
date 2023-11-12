@@ -75,7 +75,7 @@ fn page_from_url(
     }
 }
 
-enum Page {
+pub enum Page {
     Main(pages::main::Model),
     Event(pages::event::Model),
     Login(pages::login::Model),
@@ -87,11 +87,12 @@ pub struct Context {
 }
 
 pub struct Model {
-    page: Page,
-    current_url: Url,
-    context: Context,
+    pub page: Page,
+    pub current_url: Url,
+    pub context: Context,
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     UrlChanged(subs::UrlChanged),
     Main(pages::main::Msg),

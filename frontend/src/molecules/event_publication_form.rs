@@ -26,15 +26,18 @@ pub enum State {
     Invalid(String),
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     Public(PublicMsg),
     Private(PrivateMsg),
 }
 
+#[derive(Clone, Debug)]
 pub enum PublicMsg {
     EventPublished,
 }
 
+#[derive(Clone, Debug)]
 pub enum PrivateMsg {
     EventName(input::Msg),
     PublishButton(button::Msg),

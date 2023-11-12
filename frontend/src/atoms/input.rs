@@ -12,6 +12,7 @@ pub struct Model {
     pub value: String,
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     ValueChange(String),
 }
