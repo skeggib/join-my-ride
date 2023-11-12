@@ -8,7 +8,6 @@ use common::{api::BackendApi, rest::RestBackend};
 use seed::{
     app::OrdersContainer,
     prelude::{subs::UrlChanged, *},
-    *,
 };
 
 pub fn init(url: Url, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) -> Model {
