@@ -8,6 +8,7 @@ pub struct Model {
     name: String,
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     Click,
 }

@@ -1,6 +1,9 @@
 use crate::{Event, Id};
 use async_trait::async_trait;
+use mockall::*;
+use mockall::predicate::*;
 
+#[automock]
 #[async_trait(?Send)]
 pub trait BackendApi {
     async fn get_events(self: &Self) -> Result<Vec<Event>, String>;

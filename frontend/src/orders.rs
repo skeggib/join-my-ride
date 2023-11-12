@@ -21,7 +21,7 @@ impl<Ms: 'static, Model, Node> OrdersMock<Ms, Model, Node> {
         &mut self,
         _f: impl FnOnce(ChildMs) -> Ms + 'static + Clone,
     ) -> OrdersMock<ChildMs, Model, Node> {
-        OrdersMock::new()
+        OrdersMock::new() // TODO: return a child orders mock that wraps messages and stores them in its parent
     }
 
     fn perform_cmd<MsU: 'static>(self: &mut Self, cmd: impl Future<Output = MsU> + 'static) {

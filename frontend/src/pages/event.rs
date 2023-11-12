@@ -87,6 +87,7 @@ impl Loaded {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     OnGetEventResponse(Event),
     Error(String),

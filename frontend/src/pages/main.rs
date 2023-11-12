@@ -20,7 +20,7 @@ pub fn init(_: &mut Url, context: &Context, orders: &mut impl IMyOrders<Msg>) ->
 type ErrorMessage = String;
 
 pub struct Model {
-    state: State,
+    pub state: State,
 }
 
 pub enum State {
@@ -45,6 +45,7 @@ impl Loaded {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     OnGetEventsResponse(Vec<Event>),
     EventPublication(event_publication_form::Msg),

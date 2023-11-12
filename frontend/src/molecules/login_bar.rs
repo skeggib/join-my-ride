@@ -31,15 +31,18 @@ struct SignedIn {
     logout_button: button::Model,
 }
 
+#[derive(Clone, Debug)]
 pub enum Msg {
     Public(PublicMsg),
     Private(PrivateMsg),
 }
 
+#[derive(Clone, Debug)]
 pub enum PublicMsg {
     SignedOut,
 }
 
+#[derive(Clone, Debug)]
 pub enum PrivateMsg {
     LogoutButton(button::Msg),
     SignedOut,
