@@ -1,19 +1,13 @@
-use std::pin::Pin;
-use std::rc::Rc;
-
-use async_trait::async_trait;
-use common::api::{BackendApi, MockBackendApi};
-use common::{Event, Id};
+use common::api::MockBackendApi;
+use common::Event;
 use frontend::app::{self, Msg, Page};
 use frontend::orders::{MyOrders, OrdersImplementation, OrdersMock};
 use frontend::pages::main::{self, State};
-use futures::Future;
 use seed::Url;
+use std::rc::Rc;
 
 #[test]
 fn main_page_requests_all_events_and_displays_them() {
-    // 
-
     let mut orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Mock(OrdersMock::new()));
 
     // expect the front-end to request all events
@@ -26,7 +20,6 @@ fn main_page_requests_all_events_and_displays_them() {
     let mut app_ = app::testable_init(Url::new(), &mut orders, Rc::new(backend));
 
     // when the backend responds with events
-    println!("{:?}", orders.mock().unwrap().messages());
     // assert!(matches!(orders.mock().unwrap().messages().last(), Some(app::Msg::Main(main::Msg::OnGetEventsResponse(..))))); // TODO: uncomment and fix
     app::testable_update(
         app::Msg::Main(main::Msg::OnGetEventsResponse(vec![Event::new(

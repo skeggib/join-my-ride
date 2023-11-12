@@ -95,7 +95,7 @@ fn update_typing(
 fn update_publishing(
     msg: PrivateMsg,
     model: &mut Model,
-    context: &mut Context,
+    _context: &mut Context,
     _orders: &mut impl IMyOrders<Msg>,
 ) {
     match msg {
@@ -111,7 +111,7 @@ fn update_publishing(
 fn update_invalid(
     msg: PrivateMsg,
     model: &mut Model,
-    context: &mut Context,
+    _context: &mut Context,
     _orders: &mut impl IMyOrders<Msg>,
 ) {
     match msg {

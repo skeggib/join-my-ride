@@ -1,9 +1,13 @@
 use std::{any::Any, convert::identity};
 
-use futures::{Future, executor::block_on};
-use seed::{app::{OrdersContainer, OrdersProxy}, prelude::Orders, virtual_dom::Node};
+use futures::{executor::block_on, Future};
+use seed::{
+    app::{OrdersContainer, OrdersProxy},
+    prelude::Orders,
+    virtual_dom::Node,
+};
 
-use crate::app::{Model};
+use crate::app::Model;
 
 pub struct OrdersMock<Ms, Model, Node> {
     messages: Vec<Ms>,
@@ -14,7 +18,11 @@ pub struct OrdersMock<Ms, Model, Node> {
 // methods called in MyOrders
 impl<Ms: 'static, Model, Node> OrdersMock<Ms, Model, Node> {
     pub fn new() -> Self {
-        OrdersMock { messages: vec![], _model: vec![], _node: vec![] }
+        OrdersMock {
+            messages: vec![],
+            _model: vec![],
+            _node: vec![],
+        }
     }
 
     fn proxy<ChildMs: 'static>(
@@ -49,7 +57,7 @@ impl<Ms: 'static, Model, Node> OrdersMock<Ms, Model, Node> {
 
         match handler(block_on(cmd)) {
             Some(msg) => self.messages.push(msg),
-            None => { /* do noting */},
+            None => { /* do noting */ }
         }
     }
 
@@ -100,8 +108,7 @@ pub struct MyOrders<'a, Ms: 'static, AppMs: 'static> {
     implementation: OrdersImplementation<'a, Ms, AppMs>,
 }
 
-impl<'a, Ms: 'static, AppMs: 'static> MyOrders<'a, Ms, AppMs>
-{
+impl<'a, Ms: 'static, AppMs: 'static> MyOrders<'a, Ms, AppMs> {
     pub fn new(implementation: OrdersImplementation<Ms, AppMs>) -> MyOrders<Ms, AppMs> {
         MyOrders {
             implementation: implementation,
@@ -117,28 +124,27 @@ impl<'a, Ms: 'static, AppMs: 'static> MyOrders<'a, Ms, AppMs>
     }
 }
 
-impl<'a, Ms, AppMs> IMyOrders<Ms> for MyOrders<'a, Ms, AppMs>
-{
+impl<'a, Ms, AppMs> IMyOrders<Ms> for MyOrders<'a, Ms, AppMs> {
     type AppMs = AppMs;
 
     fn proxy<ChildMs: 'static>(
         &mut self,
         f: impl FnOnce(ChildMs) -> Ms + 'static + Clone,
     ) -> MyOrders<ChildMs, AppMs> {
-        match self.implementation{
+        match self.implementation {
             OrdersImplementation::Container(ref mut _orders) => {
                 todo!()
                 // let proxy = orders.proxy(f);
                 // MyOrders::<ChildMs, AppMs>::new(OrdersImplementation::Proxy(proxy))
-            },
+            }
             OrdersImplementation::Proxy(ref mut orders) => {
                 let proxy = orders.proxy(f);
                 MyOrders::<ChildMs, AppMs>::new(OrdersImplementation::Proxy(proxy))
-            },
+            }
             OrdersImplementation::Mock(ref mut orders) => {
                 let proxy = orders.proxy(f);
                 MyOrders::<ChildMs, AppMs>::new(OrdersImplementation::Mock(proxy))
-            },
+            }
         }
     }
 
