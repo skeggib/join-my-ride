@@ -11,7 +11,9 @@ use futures::Future;
 use seed::Url;
 
 #[test]
-fn main_page_requests_for_all_events_and_displays_them() {
+fn main_page_requests_all_events_and_displays_them() {
+    // 
+
     let mut orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Mock(OrdersMock::new()));
 
     // expect the front-end to request all events
