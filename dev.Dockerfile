@@ -9,4 +9,11 @@ RUN apt install locales
 RUN locale-gen en_US.UTF-8
 RUN update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 
-RUN apt install make
+RUN apt install -y make
+
+RUN apt install -y openssh-server
+RUN mkdir /run/sshd
+
+EXPOSE 22
+
+CMD ["service", "ssh", "start", "-D"]
