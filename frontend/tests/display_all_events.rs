@@ -43,14 +43,16 @@ fn main_page_requests_all_events_and_displays_them() {
 
     // and then the page contains the events returned by the backend
     let view = app::view(&app_);
-    assert!(matches!(
-        get_element_by_contents(&view, "event 1 name"),
-        Some(..)
-    ));
-    assert!(matches!(
-        get_element_by_contents(&view, "event 2 name"),
-        Some(..)
-    ));
+    assert!(
+        matches!(get_element_by_contents(&view, "event 1 name"), Some(..)),
+        "the view does not contain a node with contents 'event 1 name':\n{}",
+        indent(&view)
+    );
+    assert!(
+        matches!(get_element_by_contents(&view, "event 2 name"), Some(..)),
+        "the view does not contain a node with contents 'event 1 name':\n{}",
+        indent(&view)
+    );
 }
 
 /// Get the first element of type seed::virtual_dom::El containing a Text node which text contains `contents`
@@ -78,5 +80,69 @@ fn get_element_by_contents<'a>(node: &'a Node<Msg>, contents: &str) -> Option<&'
         }
     } else {
         None
+    }
+}
+
+struct IndentedHtml<'a> {
+    node: &'a Node<Msg>,
+}
+
+fn indent<'a>(node: &'a Node<Msg>) -> IndentedHtml<'a> {
+    IndentedHtml { node: node }
+}
+
+impl<'a> IndentedHtml<'a> {
+    fn write_node(
+        node: &'a Node<Msg>,
+        f: &mut std::fmt::Formatter<'_>,
+        indentation: usize,
+    ) -> std::fmt::Result {
+        match node {
+            Node::Element(el) => {
+                let tag = el.tag.to_string();
+                let mut open_tag = format!("<{}", &tag);
+                let mut attrs = el.attrs.clone();
+                let style = el.style.to_string();
+                if !style.is_empty() {
+                    attrs.add(At::Style, style);
+                }
+                if let Some(namespace) = el.namespace.as_ref() {
+                    attrs.add(At::Xmlns, namespace.as_str());
+                }
+                let attributes = attrs.to_string();
+                if !attributes.is_empty() {
+                    open_tag += &format!(" {}", attributes);
+                }
+                open_tag += ">";
+                if el.children.len() > 1 {
+                    open_tag += "\n";
+                }
+                write!(f, "{}{}", "  ".repeat(indentation), open_tag)?;
+
+                if el.children.len() > 1 {
+                    for child in &el.children {
+                        IndentedHtml::write_node(child, f, indentation + 1)?;
+                        write!(f, "\n")?;
+                    }
+                    write!(f, "{}</{}>", "  ".repeat(indentation), tag)?;
+                } else {
+                    for child in &el.children {
+                        IndentedHtml::write_node(child, f, 0)?;
+                    }
+                    write!(f, "</{}>", tag)?;
+                }
+
+                Ok(())
+            }
+            Node::Text(text) => write!(f, "{}{}", "  ".repeat(indentation), text),
+            Node::Empty => write!(f, ""),
+            Node::NoChange => write!(f, ""),
+        }
+    }
+}
+
+impl<'a> Display for IndentedHtml<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        IndentedHtml::write_node(self.node, f, 0)
     }
 }
