@@ -7,8 +7,17 @@ use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
+/// Check that an html node tree contains at least one node which text contains `text`
+pub fn assert_contains_text(html: &Node<Msg>, text: &str) {
+    assert!(
+        matches!(get_element_by_contents(html, text), Some(..)),
+        "the view does not contain a node with the text 'event 1 name':\n{}",
+        highlight_html_syntax(&indent(&html))
+    )
+}
+
 /// Get the first element of type seed::virtual_dom::El containing a Text node which text contains `contents`
-pub fn get_element_by_contents<'a>(node: &'a Node<Msg>, contents: &str) -> Option<&'a El<Msg>> {
+fn get_element_by_contents<'a>(node: &'a Node<Msg>, contents: &str) -> Option<&'a El<Msg>> {
     // search children only if the current node is an element
     if let Node::Element(current_el) = node {
         // the current element has a text child containing `contents` -> return it
@@ -35,11 +44,11 @@ pub fn get_element_by_contents<'a>(node: &'a Node<Msg>, contents: &str) -> Optio
     }
 }
 
-pub fn indent(node: &Node<Msg>) -> String {
+fn indent(node: &Node<Msg>) -> String {
     IndentedHtml { node: node }.to_string()
 }
 
-pub fn highlight_html_syntax(html: &str) -> String {
+fn highlight_html_syntax(html: &str) -> String {
     let ps = SyntaxSet::load_defaults_newlines();
     let ts = ThemeSet::load_defaults();
 

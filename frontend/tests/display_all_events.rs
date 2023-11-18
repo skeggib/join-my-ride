@@ -7,7 +7,7 @@ use seed::Url;
 use std::rc::Rc;
 
 mod html_query;
-use html_query::{get_element_by_contents, highlight_html_syntax, indent};
+use html_query::assert_contains_text;
 
 #[test]
 fn main_page_requests_all_events_and_displays_them() {
@@ -29,7 +29,10 @@ fn main_page_requests_all_events_and_displays_them() {
     // when the backend responds with events
     // assert!(matches!(orders.mock().unwrap().messages().last(), Some(app::Msg::Main(main::Msg::OnGetEventsResponse(..))))); // TODO: uncomment and fix
     app::testable_update(
-        app::Msg::Main(main::Msg::OnGetEventsResponse(vec![event_1, event_2])),
+        app::Msg::Main(main::Msg::OnGetEventsResponse(vec![
+            event_1.clone(),
+            event_2.clone(),
+        ])),
         &mut app_,
         &mut orders,
     );
@@ -44,15 +47,6 @@ fn main_page_requests_all_events_and_displays_them() {
 
     // and then the page contains the events returned by the backend
     let view = app::view(&app_);
-
-    assert!(
-        matches!(get_element_by_contents(&view, "event 1 name"), Some(..)),
-        "the view does not contain a node with contents 'event 1 name':\n{}",
-        highlight_html_syntax(&indent(&view))
-    );
-    assert!(
-        matches!(get_element_by_contents(&view, "event 2 name"), Some(..)),
-        "the view does not contain a node with contents 'event 2 name':\n{}",
-        highlight_html_syntax(&indent(&view))
-    );
+    assert_contains_text(&view, &event_1.name);
+    assert_contains_text(&view, &event_2.name);
 }
