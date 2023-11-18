@@ -8,6 +8,11 @@ use seed::Url;
 use std::fmt::Display;
 use std::rc::Rc;
 
+use syntect::easy::HighlightLines;
+use syntect::highlighting::{Style, ThemeSet};
+use syntect::parsing::SyntaxSet;
+use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
+
 #[test]
 fn main_page_requests_all_events_and_displays_them() {
     let mut orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Mock(OrdersMock::new()));
@@ -43,15 +48,16 @@ fn main_page_requests_all_events_and_displays_them() {
 
     // and then the page contains the events returned by the backend
     let view = app::view(&app_);
+
     assert!(
         matches!(get_element_by_contents(&view, "event 1 name"), Some(..)),
         "the view does not contain a node with contents 'event 1 name':\n{}",
-        indent(&view)
+        highlight_html_syntax(&indent(&view).to_string())
     );
     assert!(
         matches!(get_element_by_contents(&view, "event 2 name"), Some(..)),
-        "the view does not contain a node with contents 'event 1 name':\n{}",
-        indent(&view)
+        "the view does not contain a node with contents 'event 2 name':\n{}",
+        highlight_html_syntax(&indent(&view).to_string())
     );
 }
 
@@ -145,4 +151,17 @@ impl<'a> Display for IndentedHtml<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         IndentedHtml::write_node(self.node, f, 0)
     }
+}
+
+fn highlight_html_syntax(html: &str) -> String {
+    let ps = SyntaxSet::load_defaults_newlines();
+    let ts = ThemeSet::load_defaults();
+
+    let syntax = ps.find_syntax_by_extension("html").unwrap();
+    let mut h = HighlightLines::new(syntax, &ts.themes["base16-ocean.dark"]);
+    LinesWithEndings::from(html)
+        .map(|line| h.highlight_line(line, &ps).unwrap())
+        .map(|ranges| as_24_bit_terminal_escaped(&ranges[..], true))
+        .collect::<Vec<String>>()
+        .concat() + "\x1b[0m" /* clear */
 }
