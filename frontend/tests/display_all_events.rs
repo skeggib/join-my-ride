@@ -52,12 +52,12 @@ fn main_page_requests_all_events_and_displays_them() {
     assert!(
         matches!(get_element_by_contents(&view, "event 1 name"), Some(..)),
         "the view does not contain a node with contents 'event 1 name':\n{}",
-        highlight_html_syntax(&indent(&view).to_string())
+        highlight_html_syntax(&indent(&view))
     );
     assert!(
         matches!(get_element_by_contents(&view, "event 2 name"), Some(..)),
         "the view does not contain a node with contents 'event 2 name':\n{}",
-        highlight_html_syntax(&indent(&view).to_string())
+        highlight_html_syntax(&indent(&view))
     );
 }
 
@@ -93,8 +93,8 @@ struct IndentedHtml<'a> {
     node: &'a Node<Msg>,
 }
 
-fn indent<'a>(node: &'a Node<Msg>) -> IndentedHtml<'a> {
-    IndentedHtml { node: node }
+fn indent(node: &Node<Msg>) -> String {
+    IndentedHtml { node: node }.to_string()
 }
 
 impl<'a> IndentedHtml<'a> {
