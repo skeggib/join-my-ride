@@ -11,33 +11,29 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"streetsidesoftware.code-spell-checker",
-				"mhutchie.git-graph",
-				"eamodio.gitlens",
-				"Cardinal90.multi-cursor-case-preserve",
-				"rust-lang.rust-analyzer",
-				"hbenl.vscode-test-explorer",
-				"ms-vscode.test-adapter-converter",
-				"Swellaby.vscode-rust-test-adapter",
 				"bungcip.better-toml",
+				"Cardinal90.multi-cursor-case-preserve",
+				"eamodio.gitlens",
 				"Gruntfuggly.todo-tree",
+				"hbenl.vscode-test-explorer",
+				"mhutchie.git-graph",
+				"ms-vscode.test-adapter-converter",
+				"rust-lang.rust-analyzer",
+				"streetsidesoftware.code-spell-checker",
+				"Swellaby.vscode-rust-test-adapter",
+				"tamasfe.even-better-toml",
 				"vadimcn.vscode-lldb"
 			]
 		}
 	}
-
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
-
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
-
 	// Uncomment the next line to run commands after the container is created.
 	// "postCreateCommand": "cat /etc/os-release",
-
 	// Configure tool-specific properties.
 	// "customizations": {},
-
 	// Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "devcontainer"
 }
