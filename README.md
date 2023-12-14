@@ -12,13 +12,13 @@ cargo install cargo-watch
 Build the frontend:
 
 ```
-cd frontend/
+cd frontend-seed/
 cargo make build
 ```
 
 Build the backend and run the app:
 
 ```
-cd backend/
+cd backend-rocket/
 cargo run
 ```

@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use backend::Backend;
 use common::Event;
 use rocket::{
     data::Outcome,
@@ -11,28 +12,21 @@ use rocket::{
 };
 use std::{
     collections::HashMap,
-    ops::DerefMut,
     path::{Path, PathBuf},
-    str::FromStr,
-    sync::Mutex,
 };
 
 #[macro_use]
 extern crate rocket;
 
 struct State {
-    events: Mutex<Vec<Event>>,
+    backend: Backend,
 }
 
 impl State {
     fn new() -> State {
         // TODO(hard-coded): get events from database
         State {
-            events: Mutex::new(vec![
-                Event::new("event_1".to_owned()),
-                Event::new("event_2".to_owned()),
-                Event::new("event_3".to_owned()),
-            ]),
+            backend: Backend::new(),
         }
     }
 }
@@ -60,19 +54,16 @@ async fn package_wasm() -> Option<NamedFile> {
 
 #[get("/api/events")]
 fn events(state: &rocket::State<State>) -> String {
-    serde_json::to_string(&state.events).unwrap()
+    serde_json::to_string(&state.backend.get_events())
+        .unwrap_or("could not serialize events".into())
 }
 
 #[get("/api/event/<id_str>")]
 fn event(id_str: String, state: &rocket::State<State>) -> Option<String> {
-    let id = common::Id::from_str(&id_str).ok()?;
-    let all_events = state.events.lock().ok()?;
-    let matching_events: Vec<&Event> = all_events.iter().filter(|event| event.id == id).collect();
-    if matching_events.is_empty() {
-        None
-    } else {
-        Some(serde_json::to_string(&matching_events[0]).ok()?)
-    }
+    state
+        .backend
+        .get_event(&id_str)
+        .map(|event| serde_json::to_string(&event).unwrap_or("could not serialize event".into()))
 }
 
 struct User {
@@ -121,25 +112,7 @@ fn join_event(
     state: &rocket::State<State>,
     user: User,
 ) -> Result<(), NotFound<String>> {
-    let id = common::Id::from_str(&id_str).map_err(|err| NotFound::<String>(err.to_string()))?;
-    match state.events.lock() {
-        Ok(mut guard) => {
-            let all_events = guard.deref_mut();
-            let mut found = false;
-            for i in 1..all_events.len() {
-                if all_events[i].id == id {
-                    found = true;
-                    all_events[i].participants.insert(user.name.clone());
-                }
-            }
-            if found {
-                Ok(())
-            } else {
-                Err(NotFound::<String>("event not found".to_owned()))
-            }
-        }
-        Err(err) => Err(NotFound::<String>(err.to_string())),
-    }
+    state.backend.join_event(&id_str, &user.name)
 }
 
 struct EventData {
@@ -163,10 +136,7 @@ impl<'r> FromData<'r> for EventData {
 
 #[put("/api/event", format = "application/json", data = "<data>")]
 fn publish_event(data: EventData, state: &rocket::State<State>) {
-    match state.events.lock() {
-        Ok(mut guard) => guard.deref_mut().push(data.event),
-        Err(_) => {}
-    }
+    state.backend.publish_event(data.event)
 }
 
 #[launch]
