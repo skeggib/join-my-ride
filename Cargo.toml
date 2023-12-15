@@ -3,6 +3,7 @@ members = [
     "backend",
     "backend-rocket",
     "common",
+    "e2e",
     "frontend",
     "frontend-seed",
 ]
