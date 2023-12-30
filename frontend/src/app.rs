@@ -13,7 +13,7 @@ use seed::{
 pub fn init(url: Url, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) -> Model {
     let mut my_orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Proxy(orders.proxy(
         |msg| match msg {
-            Msg::UrlChanged(msg) => Msg::UrlChanged(msg),
+            Msg::SeedUrlChanged(msg) => Msg::SeedUrlChanged(msg),
             Msg::Main(msg) => Msg::Main(msg),
             Msg::Event(msg) => Msg::Event(msg),
             Msg::Login(msg) => Msg::Login(msg),
@@ -27,7 +27,7 @@ pub fn testable_init(
     orders: &mut impl IMyOrders<Msg>,
     backend: Rc<dyn BackendApi>,
 ) -> Model {
-    orders.subscribe(Msg::UrlChanged);
+    orders.subscribe(Msg::SeedUrlChanged);
     let context = Context {
         username: None,
         backend: backend,
@@ -93,7 +93,7 @@ pub struct Model {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    UrlChanged(subs::UrlChanged),
+    SeedUrlChanged(subs::UrlChanged),
     Main(pages::main::Msg),
     Event(pages::event::Msg),
     Login(pages::login::Msg),
@@ -108,7 +108,7 @@ enum Route {
 pub fn update(msg: Msg, model: &mut Model, orders: &mut OrdersContainer<Msg, Model, Node<Msg>>) {
     let mut my_orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Proxy(orders.proxy(
         |msg| match msg {
-            Msg::UrlChanged(msg) => Msg::UrlChanged(msg),
+            Msg::SeedUrlChanged(msg) => Msg::SeedUrlChanged(msg),
             Msg::Main(msg) => Msg::Main(msg),
             Msg::Event(msg) => Msg::Event(msg),
             Msg::Login(msg) => Msg::Login(msg),
@@ -119,7 +119,7 @@ pub fn update(msg: Msg, model: &mut Model, orders: &mut OrdersContainer<Msg, Mod
 
 pub fn testable_update(msg: Msg, model: &mut Model, orders: &mut impl IMyOrders<Msg>) {
     match msg {
-        Msg::UrlChanged(url_changed) => {
+        Msg::SeedUrlChanged(url_changed) => {
             let mut new_url = url_changed.0;
             let previous_url = Some(model.current_url.clone());
             // TODO: refactor this to use a logging service
