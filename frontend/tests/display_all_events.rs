@@ -1,6 +1,6 @@
 use common::api::MockBackendApi;
 use common::Event;
-use frontend::app::{self, Msg, Page};
+use frontend::app::{self, Page, SeedMsg};
 use frontend::orders::{MyOrders, OrdersImplementation, OrdersMock};
 use frontend::pages::main::{self, State};
 use seed::Url;
@@ -11,7 +11,9 @@ use html_query::assert_contains_text;
 
 #[test]
 fn main_page_requests_all_events_and_displays_them() {
-    let mut orders = MyOrders::new(OrdersImplementation::<Msg, Msg>::Mock(OrdersMock::new()));
+    let mut orders = MyOrders::new(OrdersImplementation::<SeedMsg, SeedMsg>::Mock(
+        OrdersMock::new(),
+    ));
 
     let event_1 = Event::new("event 1 name".into());
     let event_2 = Event::new("event 2 name".into());
@@ -29,7 +31,7 @@ fn main_page_requests_all_events_and_displays_them() {
     // when the backend responds with events
     // assert!(matches!(orders.mock().unwrap().messages().last(), Some(app::Msg::Main(main::Msg::OnGetEventsResponse(..))))); // TODO: uncomment and fix
     app::testable_update(
-        app::Msg::Main(main::Msg::OnGetEventsResponse(vec![
+        app::SeedMsg::Main(main::Msg::OnGetEventsResponse(vec![
             event_1.clone(),
             event_2.clone(),
         ])),
