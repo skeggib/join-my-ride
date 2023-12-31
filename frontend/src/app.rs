@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, str::FromStr};
 
 use crate::{
     orders::{IMyOrders, MyOrders, OrdersImplementation},
@@ -11,23 +11,22 @@ use seed::{
 };
 
 pub fn init(url: Url, orders: &mut OrdersContainer<SeedMsg, Model, Node<SeedMsg>>) -> Model {
-    let mut my_orders = MyOrders::new(OrdersImplementation::<SeedMsg, SeedMsg>::Proxy(
-        orders.proxy(|msg| match msg {
-            SeedMsg::SeedUrlChanged(msg) => SeedMsg::SeedUrlChanged(msg),
-            SeedMsg::Main(msg) => SeedMsg::Main(msg),
-            SeedMsg::Event(msg) => SeedMsg::Event(msg),
-            SeedMsg::Login(msg) => SeedMsg::Login(msg),
-        }),
-    ));
+    orders.subscribe(SeedMsg::SeedUrlChanged);
+    let proxy = orders.proxy::<AppMsg>(|msg| match msg {
+        AppMsg::UrlChanged(url) => SeedMsg::SeedUrlChanged(UrlChanged(
+            seed::browser::Url::from_str(&url.to_string()).unwrap(),
+        )),
+        msg => SeedMsg::AppMsg(msg),
+    });
+    let mut my_orders = MyOrders::new(OrdersImplementation::<AppMsg, SeedMsg>::Proxy(proxy));
     testable_init(url, &mut my_orders, Rc::new(RestBackend {}))
 }
 
 pub fn testable_init(
     mut url: Url,
-    orders: &mut impl IMyOrders<SeedMsg>,
+    orders: &mut impl IMyOrders<AppMsg>,
     backend: Rc<dyn BackendApi>,
 ) -> Model {
-    orders.subscribe(SeedMsg::SeedUrlChanged);
     let context = Context {
         username: None,
         backend: backend,
@@ -52,24 +51,24 @@ fn page_from_url(
     url: &mut Url,
     previous_url: Option<Url>,
     context: &Context,
-    orders: &mut impl IMyOrders<SeedMsg>,
+    orders: &mut impl IMyOrders<AppMsg>,
 ) -> Page {
     match parse_url(url) {
         Route::Main => Page::Main(pages::main::init(
             url,
             context,
-            &mut orders.proxy(SeedMsg::Main),
+            &mut orders.proxy(AppMsg::Main),
         )),
         Route::Event => Page::Event(pages::event::init(
             url,
             context,
-            &mut orders.proxy(SeedMsg::Event),
+            &mut orders.proxy(AppMsg::Event),
         )),
         Route::Login => Page::Login(pages::login::init(
             url,
             previous_url,
             context,
-            &mut orders.proxy(SeedMsg::Login),
+            &mut orders.proxy(AppMsg::Login),
         )),
     }
 }
@@ -94,6 +93,12 @@ pub struct Model {
 #[derive(Clone, Debug)]
 pub enum SeedMsg {
     SeedUrlChanged(subs::UrlChanged),
+    AppMsg(AppMsg),
+}
+
+#[derive(Clone, Debug)]
+pub enum AppMsg {
+    UrlChanged(crate::url::Url),
     Main(pages::main::Msg),
     Event(pages::event::Msg),
     Login(pages::login::Msg),
@@ -110,21 +115,29 @@ pub fn update(
     model: &mut Model,
     orders: &mut OrdersContainer<SeedMsg, Model, Node<SeedMsg>>,
 ) {
-    let mut my_orders = MyOrders::new(OrdersImplementation::<SeedMsg, SeedMsg>::Proxy(
-        orders.proxy(|msg| match msg {
-            SeedMsg::SeedUrlChanged(msg) => SeedMsg::SeedUrlChanged(msg),
-            SeedMsg::Main(msg) => SeedMsg::Main(msg),
-            SeedMsg::Event(msg) => SeedMsg::Event(msg),
-            SeedMsg::Login(msg) => SeedMsg::Login(msg),
-        }),
-    ));
-    testable_update(msg, model, &mut my_orders);
+    let proxy = orders.proxy::<AppMsg>(|msg| match msg {
+        AppMsg::UrlChanged(url) => SeedMsg::SeedUrlChanged(UrlChanged(
+            seed::browser::Url::from_str(&url.to_string()).unwrap(),
+        )),
+        msg => SeedMsg::AppMsg(msg),
+    });
+    let mut my_orders = MyOrders::new(OrdersImplementation::<AppMsg, SeedMsg>::Proxy(proxy));
+    testable_update(
+        match msg {
+            SeedMsg::SeedUrlChanged(url_changed) => {
+                AppMsg::UrlChanged(crate::url::Url::from_str(&url_changed.0.to_string()).unwrap())
+            }
+            SeedMsg::AppMsg(msg) => msg,
+        },
+        model,
+        &mut my_orders,
+    );
 }
 
-pub fn testable_update(msg: SeedMsg, model: &mut Model, orders: &mut impl IMyOrders<SeedMsg>) {
+pub fn testable_update(msg: AppMsg, model: &mut Model, orders: &mut impl IMyOrders<AppMsg>) {
     match msg {
-        SeedMsg::SeedUrlChanged(url_changed) => {
-            let mut new_url = url_changed.0;
+        AppMsg::UrlChanged(url) => {
+            let mut new_url = seed::browser::Url::from_str(&url.to_string()).unwrap(); // TODO: use non-wasm Url
             let previous_url = Some(model.current_url.clone());
             // TODO: refactor this to use a logging service
             // log!(format!(
@@ -135,27 +148,27 @@ pub fn testable_update(msg: SeedMsg, model: &mut Model, orders: &mut impl IMyOrd
             model.current_url = new_url.clone();
             model.page = page_from_url(&mut new_url, previous_url, &model.context, orders);
         }
-        SeedMsg::Main(main_msg) => {
+        AppMsg::Main(main_msg) => {
             if let Page::Main(main_model) = &mut model.page {
                 pages::main::update(
                     main_msg,
                     main_model,
                     &mut model.context,
-                    &mut orders.proxy(SeedMsg::Main),
+                    &mut orders.proxy(AppMsg::Main),
                 );
             }
         }
-        SeedMsg::Event(event_msg) => {
+        AppMsg::Event(event_msg) => {
             if let Page::Event(event_model) = &mut model.page {
                 pages::event::update(
                     event_msg,
                     event_model,
                     &mut model.context,
-                    &mut orders.proxy(SeedMsg::Event),
+                    &mut orders.proxy(AppMsg::Event),
                 );
             }
         }
-        SeedMsg::Login(login_msg) => {
+        AppMsg::Login(login_msg) => {
             if let Page::Login(login_model) = &mut model.page {
                 match login_msg {
                     pages::login::Msg::Public(msg) => match msg {
@@ -172,7 +185,7 @@ pub fn testable_update(msg: SeedMsg, model: &mut Model, orders: &mut impl IMyOrd
                             msg,
                             login_model,
                             &mut model.context,
-                            &mut orders.proxy(SeedMsg::Login),
+                            &mut orders.proxy(AppMsg::Login),
                         );
                     }
                 }
@@ -183,13 +196,19 @@ pub fn testable_update(msg: SeedMsg, model: &mut Model, orders: &mut impl IMyOrd
 
 pub fn view(model: &Model) -> Node<SeedMsg> {
     match &model.page {
-        Page::Main(model) => pages::main::view(model).map_msg(SeedMsg::Main),
-        Page::Event(model) => pages::event::view(model).map_msg(SeedMsg::Event),
-        Page::Login(model) => pages::login::view(model).map_msg(SeedMsg::Login),
+        Page::Main(model) => {
+            pages::main::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Main(msg)))
+        }
+        Page::Event(model) => {
+            pages::event::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Event(msg)))
+        }
+        Page::Login(model) => {
+            pages::login::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Login(msg)))
+        }
     }
 }
 
-fn change_url(url: Url, orders: &mut impl IMyOrders<SeedMsg>) {
+fn change_url(url: Url, orders: &mut impl IMyOrders<AppMsg>) {
     // TODO: update address bar
     orders.notify(UrlChanged(url));
 }
