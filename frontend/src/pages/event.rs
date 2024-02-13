@@ -10,7 +10,7 @@ use seed::{prelude::*, *};
 use std::rc::Rc;
 use std::str::FromStr;
 
-fn id_from_url(url: &mut Url) -> Result<Id, String> {
+fn id_from_url(url: &mut crate::url::Url) -> Result<Id, String> {
     Id::from_str(
         url.next_path_part()
             .ok_or("expected an ID in the URL".to_owned())?,
@@ -43,7 +43,7 @@ pub fn join_event(id: Id, orders: &mut impl IMyOrders<Msg>, backend: Rc<dyn Back
     });
 }
 
-pub fn init(url: &mut Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
+pub fn init(url: &mut crate::url::Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
     match id_from_url(url) {
         Ok(id) => {
             request_event(id, orders, context.backend.clone());

@@ -7,7 +7,7 @@ use crate::{
 use common::{api::BackendApi, rest::RestBackend};
 use seed::{
     app::OrdersContainer,
-    prelude::{subs::UrlChanged, *},
+    prelude::{subs::UrlChanged, *}, log,
 };
 
 pub fn init(url: Url, orders: &mut OrdersContainer<SeedMsg, Model, Node<SeedMsg>>) -> Model {
@@ -19,11 +19,11 @@ pub fn init(url: Url, orders: &mut OrdersContainer<SeedMsg, Model, Node<SeedMsg>
         msg => SeedMsg::AppMsg(msg),
     });
     let mut my_orders = MyOrders::new(OrdersImplementation::<AppMsg, SeedMsg>::Proxy(proxy));
-    testable_init(url, &mut my_orders, Rc::new(RestBackend {}))
+    testable_init(crate::url::Url::from_str(&url.to_string()).unwrap(), &mut my_orders, Rc::new(RestBackend {}))
 }
 
 pub fn testable_init(
-    mut url: Url,
+    mut url: crate::url::Url,
     orders: &mut impl IMyOrders<AppMsg>,
     backend: Rc<dyn BackendApi>,
 ) -> Model {
@@ -39,7 +39,8 @@ pub fn testable_init(
     }
 }
 
-fn parse_url(url: &mut Url) -> Route {
+fn parse_url(url: &mut crate::url::Url) -> Route {
+    // log!("parse url: {?}", url); // TODO: refactor this to use a logging service
     match url.next_path_part() {
         Some("event") => Route::Event,
         Some("login") => Route::Login,
@@ -48,8 +49,8 @@ fn parse_url(url: &mut Url) -> Route {
 }
 
 fn page_from_url(
-    url: &mut Url,
-    previous_url: Option<Url>,
+    url: &mut crate::url::Url,
+    previous_url: Option<crate::url::Url>,
     context: &Context,
     orders: &mut impl IMyOrders<AppMsg>,
 ) -> Page {
@@ -86,7 +87,7 @@ pub struct Context {
 
 pub struct Model {
     pub page: Page,
-    pub current_url: Url,
+    pub current_url: crate::url::Url,
     pub context: Context,
 }
 
@@ -136,8 +137,7 @@ pub fn update(
 
 pub fn testable_update(msg: AppMsg, model: &mut Model, orders: &mut impl IMyOrders<AppMsg>) {
     match msg {
-        AppMsg::UrlChanged(url) => {
-            let mut new_url = seed::browser::Url::from_str(&url.to_string()).unwrap(); // TODO: use non-wasm Url
+        AppMsg::UrlChanged(mut new_url) => {
             let previous_url = Some(model.current_url.clone());
             // TODO: refactor this to use a logging service
             // log!(format!(
@@ -195,20 +195,24 @@ pub fn testable_update(msg: AppMsg, model: &mut Model, orders: &mut impl IMyOrde
 }
 
 pub fn view(model: &Model) -> Node<SeedMsg> {
+    testable_view(model).map_msg(SeedMsg::AppMsg)
+}
+
+pub fn testable_view(model: &Model) -> Node<AppMsg> {
     match &model.page {
         Page::Main(model) => {
-            pages::main::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Main(msg)))
+            pages::main::view(model).map_msg(AppMsg::Main)
         }
         Page::Event(model) => {
-            pages::event::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Event(msg)))
+            pages::event::view(model).map_msg(AppMsg::Event)
         }
         Page::Login(model) => {
-            pages::login::view(model).map_msg(|msg| SeedMsg::AppMsg(AppMsg::Login(msg)))
+            pages::login::view(model).map_msg(AppMsg::Login)
         }
     }
 }
 
-fn change_url(url: Url, orders: &mut impl IMyOrders<AppMsg>) {
+fn change_url(url: crate::url::Url, orders: &mut impl IMyOrders<AppMsg>) {
     // TODO: update address bar
-    orders.notify(UrlChanged(url));
+    orders.notify(AppMsg::UrlChanged(crate::url::Url::from_str(&url.to_string()).unwrap()));
 }

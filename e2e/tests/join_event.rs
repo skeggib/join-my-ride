@@ -1,19 +1,18 @@
+use crate::app::AppMsg;
 use async_trait::async_trait;
 use backend::Backend;
 use common::api::BackendApi;
 use common::{Event, Id};
 use debug_cell::RefCell;
+use frontend::app::AppMsg as Msg;
+use frontend::url::Url;
 use frontend::{
-    app::{self, testable_update, Msg},
+    app::{self},
     orders::{MyOrders, OrdersStub},
 };
-use seed::app::subs::UrlChanged;
-use seed::virtual_dom::At;
-use seed::{
-    virtual_dom::{Node, Tag},
-    Url,
-};
-use std::borrow::BorrowMut;
+use seed::virtual_dom::{At, AtValue};
+use seed::virtual_dom::{Node, Tag};
+use std::fmt::Display;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -47,62 +46,86 @@ fn get_login_url(root: &Node<Msg>) -> Option<&str> {
 
 #[test]
 fn clicking_join_on_event_adds_user_to_participants() {
+    // since the frontend and orders stub can only be borrowed once at a time,
+    // we need to finish processing an update before starting another. this
+    // means that a produced message during an update needs to be stored and
+    // processed after the update
+
+    // list of produced messages that need to be handled after an update
     let messages: Rc<RefCell<Vec<Msg>>> = Rc::new(RefCell::new(vec![]));
+
+    // orders stub that stores produced messages in a list
     let messages_clone = messages.clone();
     let orders = Rc::new(RefCell::new(MyOrders::new(
         frontend::orders::OrdersImplementation::<Msg, Msg>::Stub(OrdersStub::new(Rc::new(
             RefCell::new(move |msg| messages_clone.as_ref().borrow_mut().push(msg)),
         ))),
     )));
+
     let backend = SyncBackend::new();
 
-    let app_ = Rc::new(RefCell::new(app::testable_init(
+    // instantiate a new frontend
+    let frontend = Rc::new(RefCell::new(app::testable_init(
         Url::new(),
         &mut *orders.as_ref().borrow_mut(),
         Rc::new(backend),
     )));
 
-    let mut cloned_app_ = app_.clone();
-    let mut cloned_orders = orders.clone();
-    let update = Rc::new(RefCell::new(move |msg| {
-        let app_ = cloned_app_.borrow_mut();
-        let orders = cloned_orders.borrow_mut();
-        testable_update(
-            msg,
-            &mut app_.as_ref().borrow_mut(),
-            &mut *orders.as_ref().borrow_mut(),
-        );
-    }));
-
-    for message in messages.borrow().iter() {
-        (update.as_ref().borrow_mut())(message.clone());
-    }
-    messages.as_ref().borrow_mut().clear();
-    match orders.as_ref().borrow_mut().implementation {
-        frontend::orders::OrdersImplementation::Container(_) => todo!(),
-        frontend::orders::OrdersImplementation::Proxy(_) => todo!(),
-        frontend::orders::OrdersImplementation::Mock(_) => todo!(),
-        frontend::orders::OrdersImplementation::Stub(ref mut stub) => {
-            stub.update = update;
+    // processes all produced messages, should be called after each call to init or update
+    let process_messages = || {
+        while !messages.borrow().is_empty() {
+            // clone messages and empty the messages list to allow storing newly produced messages
+            let messages_clone = messages.borrow().clone();
+            messages.as_ref().borrow_mut().clear();
+            for message in messages_clone {
+                app::testable_update(
+                    message.clone(),
+                    &mut frontend.as_ref().borrow_mut(),
+                    &mut *orders.as_ref().borrow_mut(),
+                );
+            }
         }
-        frontend::orders::OrdersImplementation::StubProxy(_) => todo!(),
     };
+
+    process_messages();
 
     // given a logged-in user
     {
-        let view = app::view(&app_.borrow());
+        let view = app::testable_view(&frontend.borrow());
         let login_url = get_login_url(&view).unwrap();
         app::testable_update(
-            app::Msg::UrlChanged(UrlChanged(Url::from_str(login_url).unwrap())),
-            &mut app_.as_ref().borrow_mut(),
+            Msg::UrlChanged(Url::from_str(login_url).unwrap()),
+            &mut frontend.as_ref().borrow_mut(),
             &mut *orders.as_ref().borrow_mut(),
         );
+        process_messages();
+        app::testable_update(
+            Msg::Login(frontend::pages::login::Msg::Private(
+                frontend::pages::login::PrivateMsg::UsernameInput(
+                    frontend::atoms::input::Msg::ValueChange("user".into()),
+                ),
+            )),
+            &mut frontend.as_ref().borrow_mut(),
+            &mut *orders.as_ref().borrow_mut(),
+        );
+        process_messages();
+        app::testable_update(
+            Msg::Login(frontend::pages::login::Msg::Private(
+                frontend::pages::login::PrivateMsg::LoginButton(
+                    frontend::atoms::button::Msg::Click,
+                ),
+            )),
+            &mut frontend.as_ref().borrow_mut(),
+            &mut *orders.as_ref().borrow_mut(),
+        );
+        process_messages();
+        // TODO: check that the user is logged in
     }
 
     // and given the displayed page is an event
     {
-        let view = app::view(&app_.borrow());
-        let event_url = find_node(&view, &|node| {
+        let view = app::testable_view(&frontend.borrow());
+        let event_link = find_node(&view, &|node| {
             node.is_el()
                 && node.el().unwrap().tag == Tag::A
                 && !node.el().unwrap().children.is_empty()
@@ -118,10 +141,32 @@ fn clicking_join_on_event_adds_user_to_participants() {
                     .text
                     == "event_1"
         });
-        assert!(event_url.is_some());
-        println!("{}", event_url.unwrap().to_string());
+        assert!(
+            event_link.is_some(),
+            "the view does not contain a node with the text 'event_1':\n{}",
+            indent(&view)
+        );
+        let event_url = if let AtValue::Some(url) = event_link
+            .unwrap()
+            .el()
+            .unwrap()
+            .attrs
+            .vals
+            .get(&At::Href)
+            .unwrap()
+        {
+            Some(url)
+        } else {
+            None
+        };
+        app::testable_update(
+            Msg::UrlChanged(Url::from_str(&event_url.unwrap()).unwrap()),
+            &mut frontend.as_ref().borrow_mut(),
+            &mut *orders.as_ref().borrow_mut(),
+        );
+        process_messages();
+        // TODO: check that the current page is the event's page
     }
-    // app::testable_update(app::Msg::UrlChanged(UrlChanged(Url::from_str(format!("/event/{}", evend_id)))), model, orders)
 
     // when the user clicks on the join button of an event
 
@@ -177,7 +222,72 @@ impl BackendApi for SyncBackend {
         Ok(())
     }
     async fn join_event(self: &Self, id: Id) -> Result<(), String> {
-        self.backend.join_event(&id.to_string(), "user");
-        Ok(())
+        self.backend
+            .join_event(&id.to_string(), "user")
+            .map_err(|err| err.0)
+    }
+}
+
+fn indent(node: &Node<AppMsg>) -> String {
+    IndentedHtml { node: node }.to_string()
+}
+
+struct IndentedHtml<'a> {
+    node: &'a Node<AppMsg>,
+}
+
+impl<'a> IndentedHtml<'a> {
+    fn write_node(
+        node: &'a Node<AppMsg>,
+        f: &mut std::fmt::Formatter<'_>,
+        indentation: usize,
+    ) -> std::fmt::Result {
+        match node {
+            Node::Element(el) => {
+                let tag = el.tag.to_string();
+                let mut open_tag = format!("<{}", &tag);
+                let mut attrs = el.attrs.clone();
+                let style = el.style.to_string();
+                if !style.is_empty() {
+                    attrs.add(At::Style, style);
+                }
+                if let Some(namespace) = el.namespace.as_ref() {
+                    attrs.add(At::Xmlns, namespace.as_str());
+                }
+                let attributes = attrs.to_string();
+                if !attributes.is_empty() {
+                    open_tag += &format!(" {}", attributes);
+                }
+                open_tag += ">";
+                if el.children.len() > 1 {
+                    open_tag += "\n";
+                }
+                write!(f, "{}{}", "  ".repeat(indentation), open_tag)?;
+
+                if el.children.len() > 1 {
+                    for child in &el.children {
+                        IndentedHtml::write_node(child, f, indentation + 1)?;
+                        write!(f, "\n")?;
+                    }
+                    write!(f, "{}</{}>", "  ".repeat(indentation), tag)?;
+                } else {
+                    for child in &el.children {
+                        IndentedHtml::write_node(child, f, 0)?;
+                    }
+                    write!(f, "</{}>", tag)?;
+                }
+
+                Ok(())
+            }
+            Node::Text(text) => write!(f, "{}{}", "  ".repeat(indentation), text),
+            Node::Empty => write!(f, ""),
+            Node::NoChange => write!(f, ""),
+        }
+    }
+}
+
+impl<'a> Display for IndentedHtml<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        IndentedHtml::write_node(self.node, f, 0)
     }
 }

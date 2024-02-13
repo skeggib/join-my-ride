@@ -150,8 +150,33 @@ impl<Ms: 'static, Model, Node> OrdersStub<Ms, Model, Node> {
         // TODO: implement when needed
     }
 
-    fn notify(&mut self, _message: impl Any + Clone) {
-        todo!()
+    fn notify(&mut self, notification: impl Any + Clone) {
+        let t_type = std::any::TypeId::of::<Ms>();
+        let handler: Box<dyn Fn(Tmp) -> Option<Ms>> = if t_type == std::any::TypeId::of::<Ms>() {
+            Box::new(move |value| {
+                (&mut Some(identity(value)) as &mut dyn std::any::Any)
+                    .downcast_mut::<Option<Ms>>()
+                    .and_then(Option::take)
+            })
+        } else if t_type == std::any::TypeId::of::<Option<Ms>>() {
+            Box::new(move |value| {
+                (&mut identity(value) as &mut dyn std::any::Any)
+                    .downcast_mut::<Option<Ms>>()
+                    .and_then(Option::take)
+            })
+        } else if t_type == std::any::TypeId::of::<()>() {
+            Box::new(move |value| {
+                identity(value);
+                None
+            }) as Box<dyn Fn(Ms) -> Option<Ms>>
+        } else {
+            panic!("TODO");
+        };
+
+        match handler(notification) {
+            Some(msg) => (self.update.borrow_mut())(msg),
+            None => { /* do noting */ }
+        }
     }
 }
 

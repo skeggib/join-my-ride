@@ -10,7 +10,7 @@ use common::api::BackendApi;
 use common::Event;
 use seed::{prelude::*, *};
 
-pub fn init(_: &mut Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
+pub fn init(_: &mut crate::url::Url, context: &Context, orders: &mut impl IMyOrders<Msg>) -> Model {
     request_events(orders, context.backend.clone());
     Model {
         state: State::Loading,

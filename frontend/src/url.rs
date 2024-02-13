@@ -37,7 +37,7 @@ impl FromStr for Url {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Url {
-            path: s.split("/").map(str::to_owned).collect(),
+            path: s.split("/").map(str::to_owned).filter(|part| !part.is_empty()).collect(),
             next_path_part_index: 0,
         })
     }

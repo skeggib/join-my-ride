@@ -1,9 +1,9 @@
 use common::api::MockBackendApi;
 use common::Event;
-use frontend::app::{self, Page, SeedMsg};
+use frontend::app::{self, Page, AppMsg};
 use frontend::orders::{MyOrders, OrdersImplementation, OrdersMock};
 use frontend::pages::main::{self, State};
-use seed::Url;
+use frontend::url::Url;
 use std::rc::Rc;
 
 mod html_query;
@@ -11,7 +11,7 @@ use html_query::assert_contains_text;
 
 #[test]
 fn main_page_requests_all_events_and_displays_them() {
-    let mut orders = MyOrders::new(OrdersImplementation::<SeedMsg, SeedMsg>::Mock(
+    let mut orders = MyOrders::new(OrdersImplementation::<AppMsg, AppMsg>::Mock(
         OrdersMock::new(),
     ));
 
@@ -31,7 +31,7 @@ fn main_page_requests_all_events_and_displays_them() {
     // when the backend responds with events
     // assert!(matches!(orders.mock().unwrap().messages().last(), Some(app::Msg::Main(main::Msg::OnGetEventsResponse(..))))); // TODO: uncomment and fix
     app::testable_update(
-        app::SeedMsg::Main(main::Msg::OnGetEventsResponse(vec![
+        app::AppMsg::Main(main::Msg::OnGetEventsResponse(vec![
             event_1.clone(),
             event_2.clone(),
         ])),

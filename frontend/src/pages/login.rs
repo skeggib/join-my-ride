@@ -7,8 +7,8 @@ use seed::{prelude::*, *};
 use crate::atoms::{button, input};
 
 pub fn init(
-    _url: &mut Url,
-    target_url: Option<Url>,
+    _url: &mut crate::url::Url,
+    target_url: Option<crate::url::Url>,
     context: &Context,
     _orders: &mut impl IMyOrders<Msg>,
 ) -> Model {
@@ -27,7 +27,7 @@ pub fn init(
 
 pub struct Model {
     stage: Stage,
-    url: Option<Url>,
+    url: Option<crate::url::Url>,
 }
 
 pub enum Stage {
@@ -49,7 +49,7 @@ pub enum Msg {
 
 #[derive(Clone, Debug)]
 pub enum PublicMsg {
-    LoggedIn(String, Option<Url>),
+    LoggedIn(String, Option<crate::url::Url>),
 }
 
 #[derive(Clone, Debug)]
@@ -155,7 +155,7 @@ fn login(username: String, orders: &mut impl IMyOrders<Msg>) {
     });
 }
 
-fn notify_login(username: String, url: Option<Url>, orders: &mut impl IMyOrders<Msg>) {
+fn notify_login(username: String, url: Option<crate::url::Url>, orders: &mut impl IMyOrders<Msg>) {
     perform_cmd(orders, async {
         Msg::Public(PublicMsg::LoggedIn(username, url))
     });
